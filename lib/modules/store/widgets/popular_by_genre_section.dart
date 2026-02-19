@@ -4,7 +4,7 @@ import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/view/books_grid_screen_view.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
 import 'package:elkitap/modules/store/controllers/all_geners_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 
 import 'package:elkitap/modules/store/widgets/popular_gerners_book_cart.dart';

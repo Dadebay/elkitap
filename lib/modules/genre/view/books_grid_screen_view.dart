@@ -4,7 +4,7 @@ import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/widget/book_grid_cart.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
 
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -18,6 +18,7 @@ class BooksGridScreen extends StatefulWidget {
   final bool isWantToRead;
   final bool isWantToListen;
   final bool isMyBooks;
+  final bool isAudio;
 
   const BooksGridScreen({
     required this.title,
@@ -28,6 +29,7 @@ class BooksGridScreen extends StatefulWidget {
     this.isWantToRead = false,
     this.isWantToListen = false,
     this.isMyBooks = false,
+    this.isAudio = false,
     super.key,
   });
 
@@ -44,7 +46,7 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
   void initState() {
     super.initState();
 
-    final tag = "books_${widget.id}_${widget.recommended}_${widget.isWeekly}_${widget.isRecentlyOpened}_${widget.isWantToRead}_${widget.isWantToListen}_${widget.isMyBooks}";
+    final tag = "books_${widget.id}_${widget.recommended}_${widget.isWeekly}_${widget.isRecentlyOpened}_${widget.isWantToRead}_${widget.isWantToListen}_${widget.isMyBooks}_${widget.isAudio}";
 
     if (Get.isRegistered<GetAllBooksController>(tag: tag)) {
       booksController = Get.find<GetAllBooksController>(tag: tag);
@@ -76,11 +78,23 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
     } else if (widget.isMyBooks) {
       await booksController.getMyBooks();
     } else if (widget.recommended) {
-      await booksController.getRecommendedBooks();
+      if (widget.isAudio) {
+        await booksController.searchBooksWithFilters(recommendedFilter: true, withAudioFilter: true);
+      } else {
+        await booksController.getRecommendedBooks();
+      }
     } else if (widget.isWeekly) {
-      await booksController.getTopOfTheWeekBooks();
+      if (widget.isAudio) {
+        await booksController.searchBooksWithFilters(topOfTheWeekFilter: true, withAudioFilter: true);
+      } else {
+        await booksController.getTopOfTheWeekBooks();
+      }
     } else if (widget.id != null) {
-      await booksController.getBooksByGenre(widget.id!);
+      if (widget.isAudio) {
+        await booksController.searchBooksWithFilters(genreIdFilter: widget.id, withAudioFilter: true);
+      } else {
+        await booksController.getBooksByGenre(widget.id!);
+      }
     }
   }
 
@@ -92,7 +106,7 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
 
   @override
   void dispose() {
-    final tag = "books_${widget.id}_${widget.recommended}_${widget.isWeekly}_${widget.isRecentlyOpened}_${widget.isWantToRead}_${widget.isWantToListen}_${widget.isMyBooks}";
+    final tag = "books_${widget.id}_${widget.recommended}_${widget.isWeekly}_${widget.isRecentlyOpened}_${widget.isWantToRead}_${widget.isWantToListen}_${widget.isMyBooks}_${widget.isAudio}";
     if (Get.isRegistered<GetAllBooksController>(tag: tag)) {
       Get.delete<GetAllBooksController>(tag: tag);
     }
@@ -161,11 +175,11 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   itemCount: booksController.books.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    childAspectRatio: 0.65,
+                    childAspectRatio: widget.isAudio ? 0.80 : 0.65,
                   ),
                   itemBuilder: (context, index) {
                     final book = booksController.books[index];

@@ -1,6 +1,7 @@
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/states/error_state_widget.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
+import 'package:elkitap/core/widgets/widgets.dart';
 import 'package:elkitap/modules/genre/view/genrs_page_view.dart';
 import 'package:elkitap/modules/store/controllers/all_geners_controller.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
@@ -15,17 +16,10 @@ class AllGenresView extends StatelessWidget {
     final AllGenresController controller = Get.find<AllGenresController>();
 
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'leading_text'.tr,
-          style: const TextStyle(fontSize: 17, fontFamily: StringConstants.SFPro, fontWeight: FontWeight.w400),
-        ),
-        titleSpacing: 0,
+      appBar: CustomAppBar(
+        title: '',
+        showBackButton: true,
+        leadingText: 'leading_text'.tr,
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

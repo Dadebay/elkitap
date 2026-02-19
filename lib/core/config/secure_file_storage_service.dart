@@ -300,8 +300,7 @@ class SecureFileStorageService {
 
       // Create temporary file with .epub extension
       final tempDir = await getTemporaryDirectory();
-      final tempFileName =
-          fileName.endsWith('.epub') ? fileName : '$fileName.epub';
+      final tempFileName = fileName.endsWith('.epub') ? fileName : '$fileName.epub';
       final tempFile = File('${tempDir.path}/$tempFileName');
 
       // Delete if exists
@@ -314,7 +313,6 @@ class SecureFileStorageService {
 
       return tempFile;
     } catch (e) {
-      
       return null;
     }
   }
@@ -330,8 +328,8 @@ class SecureFileStorageService {
 
       // Create temporary file with audio extension
       final tempDir = await getTemporaryDirectory();
-      final tempFileName = fileName.endsWith('.m4a') 
-          ? fileName 
+      final tempFileName = fileName.endsWith('.m4a')
+          ? fileName
           : fileName.endsWith('.mp3')
               ? fileName
               : '$fileName.m4a'; // Default to m4a for HLS audio
@@ -347,7 +345,6 @@ class SecureFileStorageService {
 
       return tempFile;
     } catch (e) {
-      print('Error exporting audio to temp: $e');
       return null;
     }
   }
@@ -357,7 +354,7 @@ class SecureFileStorageService {
     try {
       final epubFiles = await getAllEncryptedEpubs();
       final audioFiles = await getAllEncryptedAudio();
-      
+
       int totalSize = 0;
 
       for (var file in epubFiles) {

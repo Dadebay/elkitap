@@ -5,7 +5,7 @@ import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/core/widgets/common/custom_icon.dart';
 import 'package:elkitap/core/utils/performance_utils.dart';
 import 'package:elkitap/modules/library/controllers/library_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:elkitap/modules/store/model/book_item_model.dart';
 import 'package:get/get.dart';
@@ -42,8 +42,7 @@ class _BookGridItemState extends State<BookGridItem> {
         widget.controller.toggleSelection(widget.book.id.toString());
       },
       child: Obx(() {
-        final isSelected =
-            widget.controller.isSelected(widget.book.id.toString());
+        final isSelected = widget.controller.isSelected(widget.book.id.toString());
         final isInSelectionMode = widget.controller.selectedBooks.isNotEmpty;
 
         return Column(
@@ -53,7 +52,7 @@ class _BookGridItemState extends State<BookGridItem> {
             Stack(
               children: [
                 Container(
-                  height: widget.book.withAudio ? 150 : 220,
+                  height: widget.book.image!.isNotEmpty ? 190 : 150,
                   width: 150,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
@@ -76,12 +75,10 @@ class _BookGridItemState extends State<BookGridItem> {
                   clipBehavior: Clip.antiAlias,
                   child: () {
                     String? imageToUse;
-                    if (widget.book.withAudio &&
-                        widget.book.audioImage != null &&
-                        widget.book.audioImage!.isNotEmpty) {
-                      imageToUse = widget.book.audioImage;
-                    } else {
+                    if (widget.book.image!.isNotEmpty) {
                       imageToUse = widget.book.image;
+                    } else if (widget.book.audioImage != null && widget.book.audioImage!.isNotEmpty) {
+                      imageToUse = widget.book.audioImage;
                     }
                     if (imageToUse == null || imageToUse.isEmpty) {
                       return Container(
@@ -100,7 +97,7 @@ class _BookGridItemState extends State<BookGridItem> {
                     return OptimizedImage(
                       imageUrl: '${ApiEndpoints.imageBaseUrl}$imageToUse',
                       width: 150,
-                      height: widget.book.withAudio ? 150 : 220,
+                      height: widget.book.image!.isNotEmpty ? 220 : 150,
                       fit: BoxFit.fill,
                       placeholder: Container(
                         color: Colors.grey[100],
@@ -131,10 +128,7 @@ class _BookGridItemState extends State<BookGridItem> {
                       children: [
                         Container(
                           decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.black.withOpacity(0.6)
-                                    : Colors.white.withOpacity(0.55),
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.6) : Colors.white.withOpacity(0.55),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -143,15 +137,9 @@ class _BookGridItemState extends State<BookGridItem> {
                           bottom: 8,
                           child: Container(
                             decoration: BoxDecoration(
-                                color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.black
-                                    : Colors.white,
+                                color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
                                 shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: const Color.fromARGB(
-                                        255, 238, 238, 238),
-                                    width: 1)),
+                                border: Border.all(color: const Color.fromARGB(255, 238, 238, 238), width: 1)),
                             child: Padding(
                               padding: const EdgeInsets.all(3.0),
                               child: Container(
@@ -171,13 +159,9 @@ class _BookGridItemState extends State<BookGridItem> {
                     bottom: 8,
                     child: Container(
                       decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.black
-                              : Colors.white,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: const Color.fromARGB(255, 238, 238, 238),
-                              width: 1)),
+                          border: Border.all(color: const Color.fromARGB(255, 238, 238, 238), width: 1)),
                       child: Padding(
                         padding: const EdgeInsets.all(2.0),
                         child: Container(
@@ -208,9 +192,7 @@ class _BookGridItemState extends State<BookGridItem> {
                     Text(
                       widget.book.name,
                       style: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                         fontWeight: FontWeight.bold,
                         fontFamily: StringConstants.SFPro,
                         fontSize: 14,
@@ -221,11 +203,9 @@ class _BookGridItemState extends State<BookGridItem> {
                     ),
                     // const SizedBox(height: 2),
                     Text(
-                      widget.book.authors.first.name,
+                      widget.book.authors.isNotEmpty ? widget.book.authors.first.name : 'Unknown Author',
                       style: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[300]
-                            : Colors.grey[700],
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[300] : Colors.grey[700],
                         fontSize: 12,
                         fontFamily: StringConstants.SFPro,
                       ),

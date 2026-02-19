@@ -4,22 +4,31 @@ import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/view/collections_books_grid.dart';
 import 'package:elkitap/modules/store/controllers/collections_controller.dart';
 import 'package:elkitap/modules/store/model/book_item_model.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 import 'package:elkitap/modules/store/widgets/popular_gerners_book_cart.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class MainCollectionsSection extends StatefulWidget {
-  final int tabIndex;
-
   const MainCollectionsSection({super.key, this.tabIndex = 0});
+
+  final int tabIndex;
 
   @override
   State<MainCollectionsSection> createState() => _MainCollectionsSectionState();
 }
 
 class _MainCollectionsSectionState extends State<MainCollectionsSection> {
+  @override
+  void didUpdateWidget(MainCollectionsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tabIndex != widget.tabIndex) {
+      final controller = Get.find<BookCollectionController>();
+      controller.fetchCollections(isAudioMode: widget.tabIndex == 1);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -28,16 +37,6 @@ class _MainCollectionsSectionState extends State<MainCollectionsSection> {
       final controller = Get.find<BookCollectionController>();
       controller.fetchCollections(isAudioMode: widget.tabIndex == 1);
     });
-  }
-
-  @override
-  void didUpdateWidget(MainCollectionsSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Refetch when tab changes
-    if (oldWidget.tabIndex != widget.tabIndex) {
-      final controller = Get.find<BookCollectionController>();
-      controller.fetchCollections(isAudioMode: widget.tabIndex == 1);
-    }
   }
 
   @override
@@ -88,14 +87,14 @@ class _MainCollectionsSectionState extends State<MainCollectionsSection> {
 }
 
 class CollectionBookSection extends StatelessWidget {
-  final BookCollection collection;
-  final int tabIndex;
-
   const CollectionBookSection({
     super.key,
     required this.collection,
     this.tabIndex = 0,
   });
+
+  final BookCollection collection;
+  final int tabIndex;
 
   @override
   Widget build(BuildContext context) {

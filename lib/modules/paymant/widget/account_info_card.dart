@@ -8,43 +8,46 @@ class AccountInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Image.asset('assets/images/a2.png'),
-        ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'account'.tr,
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 13,
-                fontFamily: StringConstants.SFPro,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
             ),
-            Obx(() {
-              final authController = Get.find<AuthController>();
-              final phone = authController.currentUser.value?.phone ?? '+993';
-              return Text(
-                phone,
+            child: Image.asset('assets/images/a2.png'),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'account'.tr,
                 style: TextStyle(
-                  fontSize: 15,
+                  color: Colors.grey,
+                  fontSize: 13,
                   fontFamily: StringConstants.SFPro,
-                  fontWeight: FontWeight.w600,
                 ),
-              );
-            }),
-          ],
-        ),
-      ],
+              ),
+              Obx(() {
+                final authController = Get.find<AuthController>();
+                final phone = authController.currentUser.value?.phone ?? '+993';
+                return Text(
+                  phone,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontFamily: StringConstants.SFPro,
+                    fontWeight: FontWeight.w600,
+                  ),
+                );
+              }),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

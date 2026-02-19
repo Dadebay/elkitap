@@ -33,25 +33,27 @@ class _NotificationsViewState extends State<NotificationsView> {
             // Custom App Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8).copyWith(bottom: 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
+              child: GestureDetector(
+                onTap: () {
+                  Get.back();
+                },
+                child: Row(
+                  children: [
+                    Icon(
                       Icons.arrow_back_ios,
                       color: isDark ? Colors.white : Colors.black,
                       size: 20,
                     ),
-                    onPressed: () => Get.back(),
-                  ),
-                  Text(
-                    'leading_text'.tr,
-                    style: TextStyle(
-                      fontSize: 17,
-                      color: isDark ? Colors.white : Colors.black,
-                      fontFamily: StringConstants.SFPro,
+                    Text(
+                      'leading_text'.tr,
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: isDark ? Colors.white : Colors.black,
+                        fontFamily: StringConstants.SFPro,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             Padding(

@@ -1,3 +1,5 @@
+// ignore_for_file: constant_identifier_names
+
 import 'package:flutter/cupertino.dart';
 
 enum ColumnSize { small, medium, large }
@@ -30,8 +32,6 @@ class StringConstants {
 
   /// Gilroy Regular font family
   static const String GilroyRegular = 'GilroyRegular';
-
- 
 
   // static const String PrivacyPolicy = 'https://www.freeprivacypolicy.com/live/7a60122b-caf9-4bae-b9d2-02a069d71c4f';
   static const String TermsAndConditions = 'TermsAndConditions';

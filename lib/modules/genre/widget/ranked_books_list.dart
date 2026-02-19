@@ -4,7 +4,7 @@ import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/core/widgets/common/custom_icon.dart';
 import 'package:elkitap/modules/store/model/book_item_model.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -93,7 +93,8 @@ class RankedBooksList extends StatelessWidget {
               child: () {
                 String? imageToUse;
                 if (book.withAudio && tabIndex == 1) {
-                  imageToUse = book.audioImage;
+                  // For audio tab, prefer audioImage if available, fallback to image
+                  imageToUse = (book.audioImage != null && book.audioImage!.isNotEmpty) ? book.audioImage : book.image;
                 } else {
                   imageToUse = book.image;
                 }
@@ -110,7 +111,7 @@ class RankedBooksList extends StatelessWidget {
                     ),
                   );
                 }
-
+                print('Loading image for book: ${book.name}, URL: ${ApiEndpoints.imageBaseUrl + imageToUse}');
                 return CachedNetworkImage(
                   height: effectiveHeight,
                   width: bookWidth,

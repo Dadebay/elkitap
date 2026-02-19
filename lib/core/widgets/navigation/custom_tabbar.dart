@@ -33,7 +33,7 @@ class _CustomTabBarState extends State<CustomTabBar> {
           ),
           Obx(() {
             final paymentController = Get.find<PaymentController>();
-            if (paymentController.isPaymentActive.value) {
+            if (!paymentController.isPaymentActive.value) {
               return const SizedBox.shrink();
             }
             return Row(

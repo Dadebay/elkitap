@@ -7,6 +7,9 @@ class IconConstants {
   // Main Logo
   static const String elkitap = 'assets/icons/e.svg';
   static const String elkitapDark = 'assets/icons/e1.svg';
+  static const String addtoshelf = 'assets/icons/add_to_shelf.png';
+  static const String savemybooks = 'assets/icons/save_my_books.png';
+  static const String bookdescription = 'assets/icons/book_description.png';
 
   // Navigation & Bottom Bar
   static const String libraryFilled = 'assets/icons/library_filled.svg';

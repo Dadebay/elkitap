@@ -10,7 +10,7 @@ import 'package:elkitap/modules/library/widgets/library_header.dart';
 import 'package:elkitap/modules/library/widgets/recently_opened_section.dart';
 import 'package:elkitap/modules/library/widgets/suggest_content_widget.dart';
 import 'package:elkitap/modules/notifications/controllers/notification_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -63,9 +63,7 @@ class MyLibraryViewScreen extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: Theme.of(context).brightness == Brightness.dark
-                        ? [Color(0x001C1C1E), Color(0xFF1C1C1E)]
-                        : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
+                    colors: Theme.of(context).brightness == Brightness.dark ? [Color(0x001C1C1E), Color(0xFF1C1C1E)] : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
                   ),
                 ),
                 child: Column(
@@ -76,16 +74,12 @@ class MyLibraryViewScreen extends StatelessWidget {
                         return GestureDetector(
                           onTap: () {
                             Get.to(
-                              () => BookDetailView(
-                                  book: libraryMainController
-                                      .lastOpenedBook.value!),
+                              () => BookDetailView(book: libraryMainController.lastOpenedBook.value!),
                               transition: Transition.rightToLeft,
                               duration: const Duration(milliseconds: 300),
                             );
                           },
-                          child: CurrentBookSection(
-                              book:
-                                  libraryMainController.lastOpenedBook.value!),
+                          child: CurrentBookSection(book: libraryMainController.lastOpenedBook.value!),
                         );
                       } else {
                         return Center(

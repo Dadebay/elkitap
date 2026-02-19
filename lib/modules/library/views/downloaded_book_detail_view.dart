@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
 import 'package:elkitap/modules/reader/views/downloaded_reader_view.dart';
+import 'package:iconly/iconly.dart';
 
 class DownloadedBookDetailView extends StatefulWidget {
   final String bookId;
@@ -224,14 +225,15 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
                   GestureDetector(
                     onTap: _showDeleteOptions,
                     child: Container(
-                      width: 34,
-                      height: 34,
+                      width: 36,
+                      height: 36,
+                      margin: EdgeInsets.only(top: 6),
                       decoration: BoxDecoration(
                         color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.delete_outline,
+                        IconlyLight.delete,
                         size: 18,
                         color: Colors.red,
                       ),
@@ -325,8 +327,10 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
               width: MediaQuery.of(context).size.width * 0.8,
               child: Text(
                 primaryBook!.author,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
+                  color: Colors.grey,
                   fontFamily: StringConstants.SFPro,
                 ),
               ),
@@ -394,7 +398,6 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
             // Download Info Section
             Column(
               children: [
-                const SizedBox(height: 24),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Align(
@@ -413,21 +416,6 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
 
                 // Show info for both versions if available
                 if (hasText) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Text Version',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontFamily: StringConstants.SFPro,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 8),
                   _buildDownloadInfo(textBook!),
                   if (hasAudio) const SizedBox(height: 16),
@@ -453,12 +441,7 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
                   _buildDownloadInfo(audioBook!),
                 ],
 
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Divider(height: 1, color: Colors.grey[300]),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 50),
               ],
             ),
           ],

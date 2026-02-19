@@ -25,12 +25,16 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F5),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF1E1E1E)
+          : const Color(0xFFF5F5F5),
       elevation: 0,
       leadingWidth: 45,
       centerTitle: true,
       leading: _buildCloseButton(context),
-      title: paymentController.isPaymentActive.value ? SizedBox(width: 60) : _buildMediaTypeToggle(context),
+      title: !paymentController.isPaymentActive.value
+          ? SizedBox(width: 60)
+          : _buildMediaTypeToggle(context),
       automaticallyImplyLeading: false,
       actions: [
         _buildAddToLibraryButton(context),
@@ -47,7 +51,9 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         height: 34,
         margin: const EdgeInsets.only(left: 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[700]
+              : Colors.grey[200],
           shape: BoxShape.circle,
         ),
         child: const Icon(Icons.close, size: 18),
@@ -67,7 +73,9 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         height: 32,
         width: 126,
         decoration: BoxDecoration(
-          color: isDark ? Colors.black.withOpacity(0.9) : Colors.white.withOpacity(0.9),
+          color: isDark
+              ? Colors.black.withOpacity(0.9)
+              : Colors.white.withOpacity(0.9),
           borderRadius: BorderRadius.circular(25),
         ),
         child: Row(
@@ -106,7 +114,9 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: Container(
           width: 60,
           decoration: BoxDecoration(
-            color: isSelected ? (isDark ? Colors.grey[700] : Colors.grey[200]) : Colors.transparent,
+            color: isSelected
+                ? (isDark ? Colors.grey[700] : Colors.grey[200])
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Center(
@@ -169,7 +179,9 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
         height: 34,
         margin: const EdgeInsets.only(left: 8, right: 16),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[700]
+              : Colors.grey[200],
           shape: BoxShape.circle,
         ),
         child: const Icon(size: 18, Icons.more_horiz),

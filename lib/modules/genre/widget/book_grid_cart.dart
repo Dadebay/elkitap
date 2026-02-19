@@ -42,7 +42,7 @@ class BookCardGridView extends StatelessWidget {
             child: Text(
               book.name,
               textAlign: TextAlign.center,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontWeight: FontWeight.w600,

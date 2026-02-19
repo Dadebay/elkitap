@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:elkitap/core/constants/icon_constants.dart';
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/theme/app_colors.dart';

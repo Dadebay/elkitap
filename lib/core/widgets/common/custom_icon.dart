@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 
@@ -7,12 +9,7 @@ class CustomIcon extends StatelessWidget {
   double height;
   double width;
   Color? color;
-  CustomIcon(
-      {required this.title,
-      required this.height,
-      required this.width,
-      required this.color,
-      super.key});
+  CustomIcon({required this.title, required this.height, required this.width, required this.color, super.key});
 
   bool mode = false;
 

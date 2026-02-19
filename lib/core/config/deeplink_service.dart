@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:app_links/app_links.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -75,7 +75,7 @@ class DeepLinkService {
   /// Extract book ID from URI
   int? _extractBookId(Uri uri) {
     try {
-      // For custom scheme: elkitap://book/123
+      // For custom scheme: elkitap://books/123
       if (uri.scheme == 'elkitap' && uri.host == 'book') {
         if (uri.pathSegments.isNotEmpty) {
           final bookId = int.tryParse(uri.pathSegments.first);
@@ -83,13 +83,13 @@ class DeepLinkService {
         }
       }
 
-      // For web URLs: https://elkitap.com/book/123
+      // For web URLs: https://elkitap.com/books/123
       if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'book') {
         final bookId = int.tryParse(uri.pathSegments[1]);
         if (bookId != null) return bookId;
       }
 
-      // For web URLs with single segment: https://elkitap.com/book/123
+      // For web URLs with single segment: https://elkitap.com/books/123
       if (uri.pathSegments.length == 1) {
         final segment = uri.pathSegments[0];
         // Check if it starts with 'book'
@@ -152,23 +152,23 @@ class DeepLinkService {
   /// Generate deep link for sharing
   static String generateBookDeepLink(int bookId) {
     // Custom scheme (works only with app installed)
-    return 'elkitap.com.tm/book/$bookId';
+    return 'elkitap.com.tm/books/$bookId';
 
     // If you have a web domain, use this instead:
-    // return 'https://elkitap.com/book/$bookId';
+    // return 'https://elkitap.com/books/$bookId';
   }
 
   /// Generate web fallback link
   static String generateWebLink(int bookId) {
     // Return your web URL if available
-    return 'https://elkitap.com/book/$bookId';
+    return 'https://elkitap.com/books/$bookId';
   }
 
   /// Generate universal link (works on both web and app)
   static String generateUniversalLink(int bookId) {
     // This should be your actual domain
     // For testing, use the custom scheme
-    return 'elkitap://book/$bookId';
+    return 'elkitap://books/$bookId';
   }
 
   /// Check if deep link service is initialized

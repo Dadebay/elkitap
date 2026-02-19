@@ -1,6 +1,9 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:elkitap/modules/paymant/controller/promo_code_controller.dart';
+import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'promo_code_scanner_screen.dart';
 
 class PromocodeSheet extends StatefulWidget {
@@ -65,6 +68,22 @@ class _PromocodeSheetState extends State<PromocodeSheet> {
       if (result != null) {
         print('✅ Validation successful');
         print('Data: $result');
+
+        // Extract added days from result
+        int addedDays = 0;
+        if (result is Map<String, dynamic>) {
+          addedDays = (result['added_days'] as num?)?.toInt() ?? 0;
+        }
+
+        // Show success snackbar
+        if (addedDays > 0) {
+          AppSnackbar.success(
+            'promo_code_success_days_t'.trParams({'days': addedDays.toString()}),
+          );
+        } else {
+          AppSnackbar.success('promo_code_success_t'.tr);
+        }
+
         if (mounted) {
           print('🔄 Popping with result');
           Navigator.pop(context, result);

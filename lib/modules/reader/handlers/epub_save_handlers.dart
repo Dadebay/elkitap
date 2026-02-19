@@ -1,4 +1,3 @@
-import 'package:cosmos_epub/cosmos_epub.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/store/controllers/book_detail_controller.dart';
@@ -15,74 +14,74 @@ class EpubSaveHandlers {
     required this.authService,
   });
 
-  void registerSaveToMyBooksHandler(String bookId) {
-    CosmosEpub.registerSaveToMyBooksHandler((bookId) async {
-      try {
-        if (detailController.bookDetail.value == null) {
-          await detailController.fetchBookDetail(int.parse(bookId));
-        }
-
-        _showLoadingDialog();
-
-        await detailController.toggleWantToRead();
-
-        _closeDialog();
-
-        if (!detailController.isAuth.value) {
-          authService.showLoginBottomSheet();
-          return;
-        }
-
-        _showSuccessSnackbar(
-          detailController.isAddedToWantToRead.value ? 'book_saved_to_library'.tr : 'book_removed_from_library'.tr,
-        );
-      } catch (e) {
-        _closeDialog();
-
-        if (authService.isAuthError(e)) {
-          authService.showLoginBottomSheet();
-        } else {
-          _showErrorSnackbar('failed_to_save_book_try_again'.tr);
-        }
+  /// Handle saving book to "My Books" / Want to Read
+  /// Called directly from reader UI menu button
+  Future<void> handleSaveToMyBooks(String bookId) async {
+    try {
+      if (detailController.bookDetail.value == null) {
+        await detailController.fetchBookDetail(int.parse(bookId));
       }
-    });
+
+      _showLoadingDialog();
+
+      await detailController.toggleWantToRead();
+
+      _closeDialog();
+
+      if (!detailController.isAuth.value) {
+        authService.showLoginBottomSheet();
+        return;
+      }
+
+      _showSuccessSnackbar(
+        detailController.isAddedToWantToRead.value ? 'book_saved_to_library'.tr : 'book_removed_from_library'.tr,
+      );
+    } catch (e) {
+      _closeDialog();
+
+      if (authService.isAuthError(e)) {
+        authService.showLoginBottomSheet();
+      } else {
+        _showErrorSnackbar('failed_to_save_book_try_again'.tr);
+      }
+    }
   }
 
-  void registerAddToShelfHandler(String bookId) {
-    CosmosEpub.registerAddToShelfHandler((bookId) async {
-      try {
-        if (detailController.bookDetail.value == null) {
-          await detailController.fetchBookDetail(int.parse(bookId));
-        }
-
-        _showLoadingDialog();
-
-        final success = await detailController.markAsFinished();
-
-        _closeDialog();
-
-        if (!detailController.isAuth.value) {
-          authService.showLoginBottomSheet();
-          return;
-        }
-
-        if (success) {
-          _showSuccessSnackbar(
-            detailController.isMarkedAsFinished.value ? 'book_marked_as_finished'.tr : 'book_unmarked_as_finished'.tr,
-          );
-        } else {
-          _showWarningSnackbar('failed_to_update_book_status'.tr);
-        }
-      } catch (e) {
-        _closeDialog();
-
-        if (authService.isAuthError(e)) {
-          authService.showLoginBottomSheet();
-        } else {
-          _showErrorSnackbar('failed_to_mark_as_finished_try_again'.tr);
-        }
+  /// Handle adding book to shelf / marking as finished
+  /// Called directly from reader UI menu button
+  Future<void> handleAddToShelf(String bookId) async {
+    try {
+      if (detailController.bookDetail.value == null) {
+        await detailController.fetchBookDetail(int.parse(bookId));
       }
-    });
+
+      _showLoadingDialog();
+
+      final success = await detailController.markAsFinished();
+
+      _closeDialog();
+
+      if (!detailController.isAuth.value) {
+        authService.showLoginBottomSheet();
+        return;
+      }
+
+      if (success) {
+        _showSuccessSnackbar(
+          detailController.isMarkedAsFinished.value ? 'book_marked_as_finished'.tr : 'book_unmarked_as_finished'.tr,
+        );
+      } else {
+        _showWarningSnackbar('failed_to_update_book_status'.tr);
+      }
+    } catch (e) {
+      _closeDialog();
+
+      if (authService.isAuthError(e)) {
+        authService.showLoginBottomSheet();
+      } else {
+        _showErrorSnackbar('failed_to_mark_as_finished_try_again'.tr);
+      }
+    }
   }
 
   void _showLoadingDialog() {

@@ -418,10 +418,8 @@ class _ReadDownloadButtonState extends State<ReadDownloadButton> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFFF5A3C),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               elevation: 0,
                             ),
                             child: Text(

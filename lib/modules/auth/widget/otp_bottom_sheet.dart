@@ -135,24 +135,24 @@ class _OtpVerificationSheetContentState extends State<OtpVerificationSheetConten
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                ),
-                Text(
-                  'leading_text'.tr,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontFamily: StringConstants.SFPro,
-                    fontWeight: FontWeight.w500,
+            GestureDetector(
+              onTap: () {
+                Get.back();
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.arrow_back_ios),
+                  Text(
+                    'leading_text'.tr,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontFamily: StringConstants.SFPro,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-                const Spacer(),
-              ],
+                  const Spacer(),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             Padding(

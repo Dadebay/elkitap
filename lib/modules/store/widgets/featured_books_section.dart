@@ -3,7 +3,7 @@ import 'package:elkitap/core/widgets/states/error_state_widget.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/view/books_grid_screen_view.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/modules/store/widgets/book_card_widget.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 import 'package:flutter/material.dart';
@@ -54,7 +54,10 @@ class FeaturedBooksSection extends StatelessWidget {
                 GestureDetector(
                   onTap: () {
                     Get.to(() => BooksGridScreen(
-                        title: "we_recommend_t".tr, id: 0, recommended: true));
+                        title: "we_recommend_t".tr,
+                        id: 0,
+                        recommended: true,
+                        isAudio: tabIndex == 1));
                   },
                   child: Text(
                     "we_recommend_t".tr,

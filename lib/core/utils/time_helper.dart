@@ -11,6 +11,5 @@ class TimeHelper {
     }
   }
 
-  static DateTime get now =>
-      DateTime.now().add(Duration(milliseconds: _offset));
+  static DateTime get now => DateTime.now().add(Duration(milliseconds: _offset));
 }

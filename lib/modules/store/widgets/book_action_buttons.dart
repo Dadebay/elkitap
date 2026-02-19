@@ -90,7 +90,8 @@ class BookActionButtons extends StatelessWidget {
 
     if (hasText) {
       final AuthController authController = Get.find<AuthController>();
-      final isSubscribed = authController.currentUser.value?.subscription?.isActive ?? false;
+      final isSubscribed =
+          authController.currentUser.value?.subscription?.isActive ?? false;
 
       if (isSubscribed) {
         log("isSubscribed");
@@ -171,7 +172,8 @@ class BookActionButtons extends StatelessWidget {
     final AuthController authController = Get.find<AuthController>();
 
     // Subscription Check
-    final isSubscribed = authController.currentUser.value?.subscription?.isActive ?? false;
+    final isSubscribed =
+        authController.currentUser.value?.subscription?.isActive ?? false;
 
     return GestureDetector(
       onTap: hasAudio
@@ -226,9 +228,11 @@ class BookActionButtons extends StatelessWidget {
     return Obx(() {
       final aiDescription = controller.getCurrentTranslate()?.aiDescription;
       // Check if AI description exists and is not empty or just whitespace
-      final hasAiDescription = aiDescription != null && aiDescription.trim().isNotEmpty;
+      final hasAiDescription =
+          aiDescription != null && aiDescription.trim().isNotEmpty;
 
-      print('🤖 AI Button Check - hasAiDescription: $hasAiDescription, length: ${aiDescription?.length ?? 0}');
+      print(
+          '🤖 AI Button Check - hasAiDescription: $hasAiDescription, length: ${aiDescription?.length ?? 0}');
 
       if (!hasAiDescription) {
         return const SizedBox();
@@ -247,7 +251,9 @@ class BookActionButtons extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              image: const DecorationImage(image: AssetImage('assets/images/bg1.png'), fit: BoxFit.cover),
+              image: const DecorationImage(
+                  image: AssetImage('assets/images/bg1.png'),
+                  fit: BoxFit.cover),
             ),
             alignment: Alignment.center,
             child: Row(

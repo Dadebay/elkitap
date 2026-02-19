@@ -5,7 +5,7 @@ import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/search/controllers/search_controller.dart';
 import 'package:elkitap/modules/store/views/author_view.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -287,7 +287,7 @@ class SearchResultsSection extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        book.authors.first.name,
+                        book.authors != null && book.authors.isNotEmpty ? book.authors.first.name : 'Unknown Author',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

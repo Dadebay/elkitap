@@ -67,6 +67,7 @@ class _SearchingHeaderState extends State<SearchingHeader> {
                   Expanded(
                     child: TextFormField(
                       controller: controller.searchController,
+                      autofocus: true,
                       maxLines: 1,
                       style: const TextStyle(
                         fontSize: 14,

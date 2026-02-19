@@ -3,7 +3,7 @@ import 'package:elkitap/core/widgets/states/error_state_widget.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/widget/book_grid_cart.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';

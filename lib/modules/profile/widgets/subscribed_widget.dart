@@ -1,6 +1,8 @@
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/theme/app_colors.dart';
+import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 
+import 'package:elkitap/modules/auth/controllers/auth_controller.dart';
 import 'package:elkitap/modules/paymant/view/promocode_sheet.dart';
 import 'package:elkitap/modules/paymant/widget/subscription_expired_sheet.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +31,8 @@ class SubscribedView extends StatelessWidget {
     }
 
     void _showPromocodeSheet(BuildContext context) {
-      Navigator.pop(context);
+      final authController = Get.find<AuthController>();
+
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -37,7 +40,24 @@ class SubscribedView extends StatelessWidget {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         builder: (context) => const PromocodeSheet(),
-      );
+      ).then((result) async {
+        if (result == null || !context.mounted) return;
+
+        await authController.getMe();
+
+        int addedDays = 0;
+        if (result is Map<String, dynamic>) {
+          addedDays = (result['added_days'] as num?)?.toInt() ?? 0;
+        }
+
+        if (addedDays > 0) {
+          AppSnackbar.success(
+            'promo_code_success_days_t'.trParams({'days': addedDays.toString()}),
+          );
+        } else {
+          AppSnackbar.success('promo_code_success_t'.tr);
+        }
+      });
     }
 
     // 0 = Active (Normal)

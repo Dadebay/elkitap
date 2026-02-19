@@ -12,7 +12,11 @@ import 'package:elkitap/core/widgets/common/global_safe_are.dart';
 
 // Modules
 import 'package:elkitap/modules/audio_player/controllers/audio_player_controller.dart';
+import 'package:elkitap/modules/audio_player/services/audio_handler.dart';
 import 'package:elkitap/modules/audio_player/views/global_mini_player.dart';
+
+// Packages
+import 'package:audio_service/audio_service.dart';
 
 // Packages
 import 'package:flutter/material.dart';
@@ -22,8 +26,25 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:upgrader/upgrader.dart';
 
+/// Global audio handler instance - bridges just_audio with iOS Now Playing
+late ElkitapAudioHandler audioHandler;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize AudioService FIRST — before any controller is created,
+  // so audioHandler is ready when AudioPlayerController.onInit() runs.
+  audioHandler = await AudioService.init(
+    builder: () => ElkitapAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.elkitap.app.audio',
+      androidNotificationChannelName: 'Elkitap Audiobook',
+      androidNotificationOngoing: true,
+      // androidStopForegroundOnPause must be true when androidNotificationOngoing is true
+      androidStopForegroundOnPause: true,
+    ),
+  );
+
   await ApplicationInitialize.initialize();
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);

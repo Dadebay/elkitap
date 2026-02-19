@@ -1,4 +1,4 @@
-import 'package:cosmos_epub/cosmos_epub.dart';
+
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
@@ -31,7 +31,7 @@ class TranslationService extends Translations {
     // Defer the locale update to avoid setState() during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Get.updateLocale(locale);
-      CosmosEpub.updateLocale(locale);
+      
     });
   }
 

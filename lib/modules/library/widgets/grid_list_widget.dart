@@ -29,10 +29,7 @@ class GridViewWidget extends StatelessWidget {
                 child: BookGridItem(
                   book: controller.books[index],
                   controller: controller,
-                  discountPercentage: (double.tryParse(
-                              controller.books[index].progress ?? '0') ??
-                          0.0) /
-                      100,
+                  discountPercentage: (double.tryParse(controller.books[index].progress ?? '0') ?? 0.0) / 100,
                 ),
               );
             },
@@ -55,8 +52,7 @@ class AnimatedGridItem extends StatefulWidget {
   State<AnimatedGridItem> createState() => _AnimatedGridItemState();
 }
 
-class _AnimatedGridItemState extends State<AnimatedGridItem>
-    with SingleTickerProviderStateMixin {
+class _AnimatedGridItemState extends State<AnimatedGridItem> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -153,10 +149,7 @@ class ListViewWidget extends StatelessWidget {
               child: BookListItem(
                 book: controller.books[index],
                 controller: controller,
-                discountPercentage:
-                    (double.tryParse(controller.books[index].progress ?? '0') ??
-                            0.0) /
-                        100,
+                discountPercentage: (double.tryParse(controller.books[index].progress ?? '0') ?? 0.0) / 100,
               ),
             );
           },
@@ -178,8 +171,7 @@ class AnimatedListItem extends StatefulWidget {
   State<AnimatedListItem> createState() => _AnimatedListItemState();
 }
 
-class _AnimatedListItemState extends State<AnimatedListItem>
-    with SingleTickerProviderStateMixin {
+class _AnimatedListItemState extends State<AnimatedListItem> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;

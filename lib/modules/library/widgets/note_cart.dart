@@ -105,21 +105,36 @@ class NoteCard extends StatelessWidget {
                         ),
                       )
                     else
-                      IconButton(
-                        icon: const Icon(Icons.more_horiz),
-                        onPressed: () => DialogUtils.showIOSStylePopup(
-                          context,
-                          onBookTap,
-                          onShare,
-                          onEdit,
-                          onDelete,
+                      Builder(
+                        builder: (context) => IconButton(
+                          icon: const Icon(Icons.more_horiz),
+                          onPressed: () {
+                            final RenderBox button = context.findRenderObject() as RenderBox;
+                            final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+                            final RelativeRect position = RelativeRect.fromRect(
+                              Rect.fromPoints(
+                                button.localToGlobal(Offset.zero, ancestor: overlay),
+                                button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+                              ),
+                              Offset.zero & overlay.size,
+                            );
+
+                            DialogUtils.showIOSStylePopupAtPosition(
+                              context,
+                              position,
+                              onBookTap,
+                              onShare,
+                              onEdit,
+                              onDelete,
+                            );
+                          },
                         ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Kullanıcının notu (eğer varsa)
-                if (_extractUserNote(note.comment).isNotEmpty)
+                // Seçilen metin (snippet)
+                if (note.snippet.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.only(left: 12),
                     decoration: BoxDecoration(
@@ -128,22 +143,23 @@ class NoteCard extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      _extractSelectedText(note.comment),
+                      note.snippet,
                       style: const TextStyle(
                         fontSize: 16,
                         fontFamily: StringConstants.GilroyRegular,
                       ),
                     ),
                   ),
-                if (_extractUserNote(note.comment).isNotEmpty) const SizedBox(height: 12),
-                // Seçilen metin (kalın yazı)
-                Text(
-                  _extractUserNote(note.comment),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                if (note.snippet.isNotEmpty) const SizedBox(height: 12),
+                // Kullanıcının notu (kalın yazı)
+                if (note.note.isNotEmpty)
+                  Text(
+                    note.note,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 8),
                 Text(
                   note.date,
@@ -163,27 +179,31 @@ class NoteCard extends StatelessWidget {
   Widget _buildBookImage() {
     if (note.bookImage != null && note.bookImage!.isNotEmpty) {
       return Container(
-        width: 40,
-        height: 40,
+        width: 45,
+        height: 55,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(4),
           color: Colors.grey[300],
         ),
         child: note.bookImage != null
-            ? CachedNetworkImage(
-                imageUrl: '${ApiEndpoints.imageBaseUrl}${note.bookImage}',
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: CachedNetworkImage(
+                  imageUrl: '${ApiEndpoints.imageBaseUrl}${note.bookImage}',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
-                ),
-                errorWidget: (context, url, error) => CustomIcon(
-                  title: IconConstants.libraryFilled,
-                  height: 24,
-                  width: 24,
-                  color: Colors.black,
+                  errorWidget: (context, url, error) => CustomIcon(
+                    title: IconConstants.libraryFilled,
+                    height: 24,
+                    width: 24,
+                    color: Colors.black,
+                  ),
                 ),
               )
             : CustomIcon(
@@ -204,25 +224,5 @@ class NoteCard extends StatelessWidget {
         color: Colors.black,
       ),
     );
-  }
-
-  /// Extract user's note from comment (after \n\n if exists)
-  String _extractUserNote(String comment) {
-    if (comment.contains('\n\n')) {
-      final parts = comment.split('\n\n');
-      if (parts.length > 1) {
-        return parts.last.trim();
-      }
-    }
-    return '';
-  }
-
-  /// Extract selected text from comment (before \n\n if exists)
-  String _extractSelectedText(String comment) {
-    if (comment.contains('\n\n')) {
-      final parts = comment.split('\n\n');
-      return parts.first.trim();
-    }
-    return comment;
   }
 }

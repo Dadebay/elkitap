@@ -4,7 +4,7 @@ import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/view/books_grid_screen_view.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
 import 'package:elkitap/modules/store/controllers/all_geners_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 
 import 'package:elkitap/modules/store/widgets/popular_gerners_book_cart.dart';
@@ -115,21 +115,17 @@ class _GenreBookSectionState extends State<GenreBookSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(
-                  left: 32, right: 32, top: 10, bottom: 22),
+              padding: const EdgeInsets.only(left: 32, right: 32, top: 10, bottom: 22),
               child: Container(
                 height: 1.5,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[300]!.withOpacity(0.25)
-                    : Colors.grey[300],
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[300]!.withOpacity(0.25) : Colors.grey[300],
               ),
             ),
             Padding(
               padding: const EdgeInsets.only(left: 32, bottom: 6),
               child: GestureDetector(
                 onTap: () {
-                  Get.to(() => BooksGridScreen(
-                      title: widget.genre.name, id: widget.genre.id));
+                  Get.to(() => BooksGridScreen(title: widget.genre.name, id: widget.genre.id));
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -201,8 +197,7 @@ class _GenreBookSectionState extends State<GenreBookSection> {
                         );
                       },
                       child: Padding(
-                        padding: EdgeInsets.only(
-                            right: isLast ? 0 : 14, bottom: 20, top: 8),
+                        padding: EdgeInsets.only(right: isLast ? 0 : 14, bottom: 20, top: 8),
                         child: BookCardPopular(
                           book: book,
                           index: index,
@@ -235,8 +230,7 @@ class _CollectionsTitleWidget extends StatefulWidget {
   const _CollectionsTitleWidget({required this.genres});
 
   @override
-  State<_CollectionsTitleWidget> createState() =>
-      _CollectionsTitleWidgetState();
+  State<_CollectionsTitleWidget> createState() => _CollectionsTitleWidgetState();
 }
 
 class _CollectionsTitleWidgetState extends State<_CollectionsTitleWidget> {

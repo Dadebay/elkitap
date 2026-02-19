@@ -43,7 +43,9 @@ class EpubController extends GetxController {
 
   // Save progress directly to API
   Future<void> _saveProgress() async {
-    if (_currentBookId == null || totalPages.value == 0 || _networkManager == null) {
+    if (_currentBookId == null ||
+        totalPages.value == 0 ||
+        _networkManager == null) {
       return;
     }
 

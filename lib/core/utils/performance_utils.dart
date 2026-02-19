@@ -1,4 +1,6 @@
 /// Performance optimization utilities
+// ignore_for_file: use_super_parameters
+
 library;
 
 import 'package:flutter/material.dart';

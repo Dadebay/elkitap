@@ -1,3 +1,5 @@
+// ignore_for_file: use_super_parameters
+
 import 'package:elkitap/core/constants/icon_constants.dart';
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/common/custom_icon.dart';

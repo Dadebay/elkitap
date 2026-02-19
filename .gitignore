@@ -43,4 +43,4 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-/packages/elkitap_epub
+/packages/flutter_epub_viewer

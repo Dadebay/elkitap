@@ -1,5 +1,6 @@
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/theme/app_colors.dart';
+import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/modules/auth/controllers/auth_controller.dart';
 import 'package:elkitap/modules/paymant/view/promocode_sheet.dart';
 import 'package:elkitap/modules/paymant/view/subscription_plans_sheet.dart';
@@ -20,9 +21,31 @@ class SubscriptionExpiredSheet extends StatelessWidget {
       builder: (context) => const SubscriptionPlansSheet(),
     );
 
-    if (result == true && context.mounted) {
+    if (result != null && result != false && context.mounted) {
       final authController = Get.find<AuthController>();
       await authController.getMe();
+
+      // Extract tariff/subscription info to show days added
+      int addedDays = 0;
+      if (result is Map<String, dynamic>) {
+        // Try to get tariff info from response
+        final data = result['data'];
+        if (data is Map<String, dynamic>) {
+          final tariff = data['tariff'];
+          if (tariff is Map<String, dynamic>) {
+            addedDays = (tariff['duration'] as num?)?.toInt() ?? 0;
+          }
+        }
+      }
+
+      if (addedDays > 0) {
+        AppSnackbar.success(
+          'payment_success_days_t'.trParams({'days': addedDays.toString()}),
+        );
+      } else {
+        AppSnackbar.success('payment_successful_t'.tr);
+      }
+
       if (context.mounted) {
         Navigator.pop(context, true);
       }
@@ -40,11 +63,21 @@ class SubscriptionExpiredSheet extends StatelessWidget {
       builder: (context) => const PromocodeSheet(),
     );
 
-    if (result != null && context.mounted) {
+    if (result != null) {
       final authController = Get.find<AuthController>();
       await authController.getMe();
-      if (context.mounted) {
-        Navigator.pop(context, true);
+
+      int addedDays = 0;
+      if (result is Map<String, dynamic>) {
+        addedDays = (result['added_days'] as num?)?.toInt() ?? 0;
+      }
+
+      if (addedDays > 0) {
+        AppSnackbar.success(
+          'promo_code_success_days_t'.trParams({'days': addedDays.toString()}),
+        );
+      } else {
+        AppSnackbar.success('promo_code_success_t'.tr);
       }
     }
   }
@@ -96,8 +129,7 @@ class SubscriptionExpiredSheet extends StatelessWidget {
                   ),
                   Obx(() {
                     final authController = Get.find<AuthController>();
-                    final phone =
-                        authController.currentUser.value?.phone ?? '+993';
+                    final phone = authController.currentUser.value?.phone ?? '+993';
                     return Text(
                       phone,
                       style: TextStyle(
@@ -119,15 +151,13 @@ class SubscriptionExpiredSheet extends StatelessWidget {
               children: [
                 Obx(() {
                   final authController = Get.find<AuthController>();
-                  final subscription =
-                      authController.currentUser.value?.subscription;
+                  final subscription = authController.currentUser.value?.subscription;
                   final daysRemaining = subscription?.daysRemaining ?? 0;
                   final expiredAt = subscription?.expiredAt;
 
                   String dateStr = '';
                   if (expiredAt != null) {
-                    dateStr =
-                        '${expiredAt.day.toString().padLeft(2, '0')}.${expiredAt.month.toString().padLeft(2, '0')}.${expiredAt.year}';
+                    dateStr = '${expiredAt.day.toString().padLeft(2, '0')}.${expiredAt.month.toString().padLeft(2, '0')}.${expiredAt.year}';
                   }
 
                   return Column(
@@ -141,8 +171,7 @@ class SubscriptionExpiredSheet extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'subscription_ends_in_t'
-                            .trParams({'days': daysRemaining.toString()}),
+                        'subscription_ends_in_t'.trParams({'days': daysRemaining.toString()}),
                         style: TextStyle(
                           color: const Color(0xFFFF5722),
                           fontSize: 16,
@@ -179,6 +208,8 @@ class SubscriptionExpiredSheet extends StatelessWidget {
                   ),
                 ),
               ),
+              // TODO: GEÇICI OLARAK COMMENT EDİLDİ - PROMOCODE FIELD ÇALIŞMIYOR
+              // Sonra açmak için bu comment'i kaldır
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(

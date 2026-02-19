@@ -3,7 +3,7 @@ import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/view/books_grid_screen_view.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/modules/store/widgets/book_card_widget.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 import 'package:flutter/material.dart';
@@ -58,14 +58,12 @@ class _RecentlyViewedSectionState extends State<RecentlyViewedSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding:
-                const EdgeInsets.only(left: 24, right: 32, top: 30, bottom: 16),
+            padding: const EdgeInsets.only(left: 24, right: 32, top: 30, bottom: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
-                  onTap: () => Get.to(() => BooksGridScreen(
-                      title: 'recentlyOpened'.tr, isRecentlyOpened: true)),
+                  onTap: () => Get.to(() => BooksGridScreen(title: 'recentlyOpened'.tr, isRecentlyOpened: true)),
                   child: Text(
                     'recently_viewed_t'.tr,
                     style: TextStyle(

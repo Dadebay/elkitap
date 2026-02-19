@@ -13,22 +13,22 @@ PreferredSizeWidget customAppBar(ReadingListController controller, BuildContext 
     leadingWidth: 140,
     leading: Obx(() {
       if (controller.selectedBooks.isEmpty) {
-        return Row(
-          children: [
-            SizedBox(width: 12),
-            GestureDetector(
-              onTap: () {
-                Get.back();
-              },
-              child: const Icon(
+        return GestureDetector(
+          onTap: () {
+            Get.back();
+          },
+          child: Row(
+            children: [
+              SizedBox(width: 12),
+              const Icon(
                 Icons.arrow_back_ios,
               ),
-            ),
-            Text(
-              'leading_text'.tr,
-              style: TextStyle(fontSize: 17, fontFamily: StringConstants.SFPro, fontWeight: FontWeight.w500),
-            ),
-          ],
+              Text(
+                'leading_text'.tr,
+                style: TextStyle(fontSize: 17, fontFamily: StringConstants.SFPro, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
         );
       } else {
         return TextButton(

@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/modules/store/controllers/book_detail_controller.dart';
@@ -9,10 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class BookInfoSection extends StatelessWidget {
-  final BooksDetailController controller;
-  final dynamic bookDetail;
-  final BuildContext context;
-
   const BookInfoSection({
     required this.controller,
     required this.bookDetail,
@@ -20,56 +14,28 @@ class BookInfoSection extends StatelessWidget {
     super.key,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Obx(() {
-          final translates = controller.bookDetail.value?.translates ?? [];
-          final translatesInfo = translates
-              .map((e) =>
-                  'Lang: ${e.language}, ID: ${e.id}, BookKey: ${e.bookKey}')
-              .join('; ');
-          log("Book Info - ID: ${controller.bookDetail.value?.id}, Translates: [$translatesInfo]");
-
-          // Log currently selected translation
-          final currentTranslate = controller.getCurrentTranslate();
-          if (currentTranslate != null) {
-            log("Selected Translation - Lang: ${currentTranslate.language}, ID: ${currentTranslate.id}, BookKey: ${currentTranslate.bookKey}");
-          }
-          final translatesCount =
-              controller.bookDetail.value?.translates.length ?? 0;
-          // Show language selector if there are translations
-          if (translatesCount > 0) {
-            return Column(
-              children: [
-                _buildLanguageSelector(context),
-                const SizedBox(height: 12),
-              ],
-            );
-          }
-          return const SizedBox.shrink();
-        }),
-        _buildBookTitle(context),
-        _buildAuthors(context),
-        _buildGenresAndAgeRating(),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
+  final dynamic bookDetail;
+  final BuildContext context;
+  final BooksDetailController controller;
+  final GlobalKey _languageButtonKey = const GlobalObjectKey('languageButton');
 
   Widget _buildLanguageSelector(BuildContext context) {
     return Obx(() {
-      final translatesCount =
-          controller.bookDetail.value?.translates.length ?? 0;
+      final translatesCount = controller.bookDetail.value?.translates.length ?? 0;
       final hasMultipleTranslations = translatesCount > 0;
-
-      log("traslation $hasMultipleTranslations");
-
       return GestureDetector(
+        key: _languageButtonKey,
         onTap: () {
           if (hasMultipleTranslations) {
-            DialogUtils.showLanguagePopup(context, controller);
+            // Get button position
+            final RenderBox? renderBox = _languageButtonKey.currentContext?.findRenderObject() as RenderBox?;
+            if (renderBox != null) {
+              final position = renderBox.localToGlobal(Offset.zero);
+              final size = renderBox.size;
+              DialogUtils.showLanguagePopup(context, controller, buttonPosition: position, buttonSize: size);
+            } else {
+              DialogUtils.showLanguagePopup(context, controller);
+            }
           } else if (translatesCount > 0) {
             AppSnackbar.info('only_one_language_available'.tr);
           }
@@ -78,9 +44,7 @@ class BookInfoSection extends StatelessWidget {
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[700]
-                : Colors.grey[200],
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -138,8 +102,7 @@ class BookInfoSection extends StatelessWidget {
       return GestureDetector(
         onTap: () {
           if (bookDetail.authors.isNotEmpty) {
-            Get.to(() => BookAuthorView(author: bookDetail.authors.first),
-                arguments: {'authorId': bookDetail.authors.first.id});
+            Get.to(() => BookAuthorView(author: bookDetail.authors.first), arguments: {'authorId': bookDetail.authors.first.id});
           }
         },
         child: Container(
@@ -153,8 +116,7 @@ class BookInfoSection extends StatelessWidget {
                   authorsText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 16, fontFamily: StringConstants.SFPro),
+                  style: const TextStyle(fontSize: 16, fontFamily: StringConstants.SFPro),
                 ),
               ),
               const SizedBox(width: 4),
@@ -170,9 +132,7 @@ class BookInfoSection extends StatelessWidget {
     return Obx(() {
       final genres = controller.getGenresString();
       final ageRating = controller.getAgeRating();
-      final text = genres.isNotEmpty
-          ? "$genres${ageRating.isNotEmpty ? ' • $ageRating' : ''}"
-          : ageRating;
+      final text = genres.isNotEmpty ? "$genres${ageRating.isNotEmpty ? ' • $ageRating' : ''}" : ageRating;
 
       if (text.isEmpty) return const SizedBox();
 
@@ -194,5 +154,29 @@ class BookInfoSection extends StatelessWidget {
         ),
       );
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Obx(() {
+          final translatesCount = controller.bookDetail.value?.translates.length ?? 0;
+          if (translatesCount > 0) {
+            return Column(
+              children: [
+                _buildLanguageSelector(context),
+                const SizedBox(height: 12),
+              ],
+            );
+          }
+          return const SizedBox.shrink();
+        }),
+        _buildBookTitle(context),
+        _buildAuthors(context),
+        _buildGenresAndAgeRating(),
+        const SizedBox(height: 16),
+      ],
+    );
   }
 }

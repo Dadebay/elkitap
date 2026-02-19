@@ -26,10 +26,7 @@ class BookCollection {
     return BookCollection(
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
-      books: (json['books'] as List<dynamic>?)
-              ?.map((e) => Book.fromJson(e))
-              .toList() ??
-          [],
+      books: (json['books'] as List<dynamic>?)?.map((e) => Book.fromJson(e)).toList() ?? [],
     );
   }
 }
@@ -96,6 +93,12 @@ class Book {
   });
 
   factory Book.fromJson(Map<String, dynamic> json) {
+    // Handle authors - it can be null or a list
+    List<BookAuthor> authorsList = [];
+    if (json['authors'] != null && json['authors'] is List) {
+      authorsList = (json['authors'] as List<dynamic>).map((author) => BookAuthor.fromJson(author)).toList();
+    }
+
     return Book(
       id: json['id'],
       name: json['name'] ?? '',
@@ -106,10 +109,7 @@ class Book {
       year: json['year'],
       progress: json['progress'],
       likedBookId: json['liked_book_id'],
-      authors: (json['authors'] as List<dynamic>?)
-              ?.map((author) => BookAuthor.fromJson(author))
-              .toList() ??
-          [],
+      authors: authorsList,
     );
   }
 
@@ -122,7 +122,7 @@ class Book {
       'with_audio': withAudio,
       'age': age,
       'year': year,
-       'progress': progress,
+      'progress': progress,
       'liked_book_id': likedBookId,
       'authors': authors.map((author) => author.toJson()).toList(),
     };

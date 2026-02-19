@@ -20,10 +20,7 @@ class ReadingListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(
-      ReadingListController(type: type),
-      tag: 'reading_list_$type',
-    );
+    final controller = Get.put(ReadingListController(type: type), tag: 'reading_list_$type');
 
     return Scaffold(
       appBar: customAppBar(controller, context),
@@ -33,9 +30,7 @@ class ReadingListScreen extends StatelessWidget {
         }
 
         if (controller.errorMessage.isNotEmpty && controller.books.isEmpty) {
-          return ErrorStateWidget(
-              errorMessage: controller.errorMessage,
-              onRetry: () => controller.loadBooks());
+          return ErrorStateWidget(errorMessage: controller.errorMessage, onRetry: () => controller.loadBooks());
         }
 
         if (controller.books.isEmpty) {
@@ -44,9 +39,7 @@ class ReadingListScreen extends StatelessWidget {
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Container(
-                height: MediaQuery.of(context).size.height -
-                    AppBar().preferredSize.height -
-                    MediaQuery.of(context).padding.top,
+                height: MediaQuery.of(context).size.height - AppBar().preferredSize.height - MediaQuery.of(context).padding.top,
                 child: EmptyCollectionWidget(
                   descriptionKey: type == 'read'
                       ? 'emptyWantToReadDesc'
@@ -70,10 +63,7 @@ class ReadingListScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 26),
                 child: Obx(() {
                   return Text(
-                    controller.selectedBooks.isEmpty
-                        ? title
-                        : controller.selectedBooks.length.toString() +
-                            'selectedBooksCount'.tr,
+                    controller.selectedBooks.isEmpty ? title : controller.selectedBooks.length.toString() + 'selectedBooksCount'.tr,
                     style: const TextStyle(
                       fontSize: 28,
                       fontFamily: StringConstants.GilroyBold,
@@ -84,9 +74,7 @@ class ReadingListScreen extends StatelessWidget {
               ),
               Expanded(
                 child: Obx(() {
-                  return controller.isGridView.value
-                      ? GridViewWidget(controller: controller)
-                      : ListViewWidget(controller: controller);
+                  return controller.isGridView.value ? GridViewWidget(controller: controller) : ListViewWidget(controller: controller);
                 }),
               ),
             ],

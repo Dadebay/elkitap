@@ -9,6 +9,8 @@ import 'package:elkitap/core/widgets/common/custom_icon.dart';
 import 'package:elkitap/modules/library/controllers/downloaded_controller.dart';
 import 'package:elkitap/modules/store/controllers/book_detail_controller.dart';
 
+import 'package:elkitap/modules/reader/views/reader_view.dart';
+import 'package:elkitap/modules/store/model/book_item_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
@@ -17,7 +19,8 @@ import 'dart:ui';
 import 'package:share_plus/share_plus.dart';
 
 class DialogUtils {
-  static void showOptionsPopupMenu(BuildContext context, BooksDetailController controller) {
+  static void showOptionsPopupMenu(
+      BuildContext context, BooksDetailController controller) {
     showDialog(
       context: context,
       barrierColor: Colors.black26,
@@ -36,10 +39,14 @@ class DialogUtils {
                   child: Container(
                     width: 300,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.75),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black.withOpacity(0.75)
+                          : Colors.white.withOpacity(0.75),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.3) : Colors.white.withOpacity(0.3),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withOpacity(0.3)
+                            : Colors.white.withOpacity(0.3),
                         width: 1.5,
                       ),
                       boxShadow: [
@@ -68,10 +75,18 @@ class DialogUtils {
                         ),
                         // Conditionally show "add to want to read" or "add to want to listen" based on media type
                         Obx(() => _buildMenuOption(
-                            icon: controller.isAddedToWantToRead.value ? IconConstants.d5 : IconConstants.d2,
-                            title: controller.isAudio.value ? 'add_to_want_to_listen'.tr : 'add_to_want_to_read'.tr,
-                            titleColor: controller.isAddedToWantToRead.value ? const Color(0xFFFF5A3C) : null,
-                            iconColor: controller.isAddedToWantToRead.value ? const Color(0xFFFF5A3C) : null,
+                            icon: controller.isAddedToWantToRead.value
+                                ? IconConstants.d5
+                                : IconConstants.d2,
+                            title: controller.isAudio.value
+                                ? 'add_to_want_to_listen'.tr
+                                : 'add_to_want_to_read'.tr,
+                            titleColor: controller.isAddedToWantToRead.value
+                                ? const Color(0xFFFF5A3C)
+                                : null,
+                            iconColor: controller.isAddedToWantToRead.value
+                                ? const Color(0xFFFF5A3C)
+                                : null,
                             onTap: () async {
                               Navigator.pop(context);
 
@@ -95,21 +110,40 @@ class DialogUtils {
                                 ? IconConstants.d5 // checkmark icon
                                 : IconConstants.d2,
                             title: controller.isMarkedAsFinished.value
-                                ? (controller.isAudio.value ? 'unmark_as_listened'.tr : 'unmark_as_finished'.tr)
-                                : (controller.isAudio.value ? 'mark_as_listened'.tr : 'mark_as_finished'.tr),
-                            titleColor: controller.isMarkedAsFinished.value ? const Color(0xFFFF5A3C) : null,
-                            iconColor: controller.isMarkedAsFinished.value ? const Color(0xFFFF5A3C) : null,
+                                ? (controller.isAudio.value
+                                    ? 'unmark_as_listened'.tr
+                                    : 'unmark_as_finished'.tr)
+                                : (controller.isAudio.value
+                                    ? 'mark_as_listened'.tr
+                                    : 'mark_as_finished'.tr),
+                            titleColor: controller.isMarkedAsFinished.value
+                                ? const Color(0xFFFF5A3C)
+                                : null,
+                            iconColor: controller.isMarkedAsFinished.value
+                                ? const Color(0xFFFF5A3C)
+                                : null,
                             onTap: () async {
                               Navigator.pop(context);
                               final success = await controller.markAsFinished();
                               if (success) {
                                 AppSnackbar.info(
                                   controller.isMarkedAsFinished.value
-                                      ? (controller.isAudio.value ? 'audiobook_marked_finished_message'.tr : 'book_marked_finished_message'.tr)
-                                      : (controller.isAudio.value ? 'audiobook_unmarked_finished_message'.tr : 'book_unmarked_finished_message'.tr),
+                                      ? (controller.isAudio.value
+                                          ? 'audiobook_marked_finished_message'
+                                              .tr
+                                          : 'book_marked_finished_message'.tr)
+                                      : (controller.isAudio.value
+                                          ? 'audiobook_unmarked_finished_message'
+                                              .tr
+                                          : 'book_unmarked_finished_message'
+                                              .tr),
                                   title: controller.isMarkedAsFinished.value
-                                      ? (controller.isAudio.value ? 'marked_as_listened'.tr : 'marked_as_finished'.tr)
-                                      : (controller.isAudio.value ? 'unmarked_as_listened'.tr : 'unmarked_as_finished'.tr),
+                                      ? (controller.isAudio.value
+                                          ? 'marked_as_listened'.tr
+                                          : 'marked_as_finished'.tr)
+                                      : (controller.isAudio.value
+                                          ? 'unmarked_as_listened'.tr
+                                          : 'unmarked_as_finished'.tr),
                                   duration: const Duration(seconds: 2),
                                 );
                               }
@@ -130,15 +164,28 @@ class DialogUtils {
                                 iconColor: const Color(0xFFFF5A3C),
                                 onTap: () async {
                                   Navigator.pop(context);
-                                  final success = await controller.markAsFinished();
+                                  final success =
+                                      await controller.markAsFinished();
                                   if (success) {
                                     AppSnackbar.info(
                                       controller.isMarkedAsFinished.value
-                                          ? (controller.isAudio.value ? 'audiobook_marked_finished_message'.tr : 'book_marked_finished_message'.tr)
-                                          : (controller.isAudio.value ? 'audiobook_unmarked_finished_message'.tr : 'book_unmarked_finished_message'.tr),
+                                          ? (controller.isAudio.value
+                                              ? 'audiobook_marked_finished_message'
+                                                  .tr
+                                              : 'book_marked_finished_message'
+                                                  .tr)
+                                          : (controller.isAudio.value
+                                              ? 'audiobook_unmarked_finished_message'
+                                                  .tr
+                                              : 'book_unmarked_finished_message'
+                                                  .tr),
                                       title: controller.isMarkedAsFinished.value
-                                          ? (controller.isAudio.value ? 'marked_as_listened'.tr : 'marked_as_finished'.tr)
-                                          : (controller.isAudio.value ? 'unmarked_as_listened'.tr : 'unmarked_as_finished'.tr),
+                                          ? (controller.isAudio.value
+                                              ? 'marked_as_listened'.tr
+                                              : 'marked_as_finished'.tr)
+                                          : (controller.isAudio.value
+                                              ? 'unmarked_as_listened'.tr
+                                              : 'unmarked_as_finished'.tr),
                                       duration: const Duration(seconds: 2),
                                     );
                                   }
@@ -157,17 +204,21 @@ class DialogUtils {
     );
   }
 
-  static void shareBook(BooksDetailController controller, BuildContext context) {
+  static void shareBook(
+      BooksDetailController controller, BuildContext context) {
     final book = controller.bookDetail.value;
 
     final box = context.findRenderObject() as RenderBox?;
-    final rect = box != null ? box.localToGlobal(Offset.zero) & box.size : const Rect.fromLTWH(0, 0, 0, 0); // Fallback
+    final rect = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : const Rect.fromLTWH(0, 0, 0, 0); // Fallback
 
     if (book != null) {
       String shareText = '';
 
       shareText += '${book.name}\n';
-      shareText += 'by ${book.authors.map((author) => author.name).join(', ')}\n\n';
+      shareText +=
+          'by ${book.authors.map((author) => author.name).join(', ')}\n\n';
 
       // Generate deep link
       String deepLink = DeepLinkService.generateBookDeepLink(book.id);
@@ -210,7 +261,9 @@ class DialogUtils {
                   child: Container(
                     width: 300,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.75) : Color(0xFF3D3633).withOpacity(0.95),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black.withOpacity(0.75)
+                          : Color(0xFF3D3633).withOpacity(0.95),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
@@ -227,13 +280,11 @@ class DialogUtils {
                         _buildMenuOption(
                             icon: IconConstants.m1,
                             title: 'switch_to_book'.tr,
-                            titleColor: const Color.fromARGB(255, 255, 255, 255),
+                            titleColor:
+                                const Color.fromARGB(255, 255, 255, 255),
                             onTap: () {
                               Navigator.pop(context);
-                              if (controller.bookDetail.value != null) {
-                                Get.back(); // Close audio player
-                                // The book detail screen should already be in the stack
-                              }
+                              _handleOpenReader(controller, context);
                             },
                             iconColor: Colors.white,
                             context: context),
@@ -242,7 +293,8 @@ class DialogUtils {
                         _buildMenuOption(
                             icon: IconConstants.d11,
                             title: 'book_description'.tr,
-                            titleColor: const Color.fromARGB(255, 255, 255, 255),
+                            titleColor:
+                                const Color.fromARGB(255, 255, 255, 255),
                             onTap: () {
                               Navigator.pop(context);
                               showBookDetailsBottomSheet(context, controller);
@@ -254,51 +306,69 @@ class DialogUtils {
                         Obx(() {
                           final downloadCtrl = Get.find<DownloadController>();
                           final bookId = controller.bookDetail.value?.id;
-                          final isDownloaded = bookId != null && downloadCtrl.downloadedBooks.any((b) => b.id == bookId.toString() && b.isAudio);
+                          final isDownloaded = bookId != null &&
+                              downloadCtrl.downloadedBooks.any((b) =>
+                                  b.id == bookId.toString() && b.isAudio);
 
                           return _buildMenuOption(
                               icon: IconConstants.a10,
-                              title: isDownloaded ? 'downloaded'.tr : 'download'.tr,
-                              titleColor: isDownloaded ? Colors.green : const Color.fromARGB(255, 255, 255, 255),
+                              title: isDownloaded
+                                  ? 'downloaded'.tr
+                                  : 'download'.tr,
+                              titleColor: isDownloaded
+                                  ? Colors.green
+                                  : const Color.fromARGB(255, 255, 255, 255),
                               onTap: () async {
                                 Navigator.pop(context);
 
                                 final hlsUrl = controller.audioHlsUrl.value;
                                 final bookTitle = controller.getBookName();
-                                final bookCover = controller.getBookCoverImage();
-                                final bookAuthor = controller.getAuthorsString();
+                                final bookCover =
+                                    controller.getBookCoverImage();
+                                final bookAuthor =
+                                    controller.getAuthorsString();
 
                                 if (bookId == null || hlsUrl.isEmpty) {
-                                  AppSnackbar.error('cannot_download_missing_info'.tr);
+                                  AppSnackbar.error(
+                                      'cannot_download_missing_info'.tr);
                                   return;
                                 }
 
                                 if (isDownloaded) {
-                                  AppSnackbar.info('audiobook_already_downloaded'.tr);
+                                  AppSnackbar.info(
+                                      'audiobook_already_downloaded'.tr);
                                   return;
                                 }
 
                                 try {
-                                  await downloadCtrl.downloadAndEncryptAudioBook(
+                                  await downloadCtrl
+                                      .downloadAndEncryptAudioBook(
                                     bookId: bookId.toString(),
                                     bookTitle: bookTitle,
                                     imageUrl: bookCover,
-                                    author: bookAuthor.isEmpty ? 'unknown_author'.tr : bookAuthor,
+                                    author: bookAuthor.isEmpty
+                                        ? 'unknown_author'.tr
+                                        : bookAuthor,
                                     hlsUrl: hlsUrl,
                                   );
                                 } catch (e) {
                                   // Error already handled in controller
                                 }
                               },
-                              iconColor: isDownloaded ? Colors.green : Colors.white,
+                              iconColor:
+                                  isDownloaded ? Colors.green : Colors.white,
                               context: context);
                         }),
                         Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
 
                         Obx(() => _buildMenuOption(
-                            icon: controller.isAddedToWantToRead.value ? IconConstants.d5 : IconConstants.a11,
+                            icon: controller.isAddedToWantToRead.value
+                                ? IconConstants.d5
+                                : IconConstants.a11,
                             title: 'add_to_want_to_listen'.tr,
-                            titleColor: controller.isAddedToWantToRead.value ? const Color(0xFFFF5A3C) : const Color.fromARGB(255, 255, 255, 255),
+                            titleColor: controller.isAddedToWantToRead.value
+                                ? const Color(0xFFFF5A3C)
+                                : const Color.fromARGB(255, 255, 255, 255),
                             onTap: () async {
                               Navigator.pop(context);
                               await controller.toggleWantToRead();
@@ -310,14 +380,17 @@ class DialogUtils {
                                 );
                               }
                             },
-                            iconColor: controller.isAddedToWantToRead.value ? const Color(0xFFFF5A3C) : Colors.white,
+                            iconColor: controller.isAddedToWantToRead.value
+                                ? const Color(0xFFFF5A3C)
+                                : Colors.white,
                             context: context)),
                         Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
                         // Share
                         _buildMenuOption(
                             icon: IconConstants.d1,
                             title: 'share'.tr,
-                            titleColor: const Color.fromARGB(255, 255, 255, 255),
+                            titleColor:
+                                const Color.fromARGB(255, 255, 255, 255),
                             onTap: () {
                               Navigator.pop(context);
                               shareBook(controller, context);
@@ -348,7 +421,8 @@ class DialogUtils {
     );
   }
 
-  static void showAddedDialog(BuildContext context, bool isAdded, bool isAudioMode) {
+  static void showAddedDialog(
+      BuildContext context, bool isAdded, bool isAudioMode) {
     // Debug logging to verify parameters
 
     showDialog(
@@ -357,7 +431,8 @@ class DialogUtils {
       builder: (context) => GestureDetector(
         onTap: () => Navigator.pop(context),
         child: Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: SizedBox(
             width: 300,
             height: 220,
@@ -391,8 +466,12 @@ class DialogUtils {
                   const SizedBox(height: 5),
                   Text(
                     isAdded
-                        ? (isAudioMode ? 'book_added_to_want_to_listen_list'.tr : 'book_added_to_want_to_read_list'.tr)
-                        : (isAudioMode ? 'book_removed_from_want_to_listen_list'.tr : 'book_removed_from_want_to_read_list'.tr),
+                        ? (isAudioMode
+                            ? 'book_added_to_want_to_listen_list'.tr
+                            : 'book_added_to_want_to_read_list'.tr)
+                        : (isAudioMode
+                            ? 'book_removed_from_want_to_listen_list'.tr
+                            : 'book_removed_from_want_to_read_list'.tr),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 15,
@@ -408,12 +487,47 @@ class DialogUtils {
     );
   }
 
-  static void showLanguagePopup(BuildContext context, BooksDetailController controller) {
+  static void showLanguagePopup(
+    BuildContext context,
+    BooksDetailController controller, {
+    Offset? buttonPosition,
+    Size? buttonSize,
+  }) {
     // Get available translations from the book detail
     final translates = controller.bookDetail.value?.translates ?? [];
 
     // If no translations available, don't show the popup
     if (translates.isEmpty) return;
+
+    // Calculate dialog position based on button position
+    final screenSize = MediaQuery.of(context).size;
+    final dialogWidth = 200.0;
+
+    double dialogLeft, dialogTop;
+
+    if (buttonPosition != null && buttonSize != null) {
+      // Position dialog below the button, centered horizontally with it
+      dialogLeft =
+          buttonPosition.dx + (buttonSize.width / 2) - (dialogWidth / 2);
+      dialogTop =
+          buttonPosition.dy + buttonSize.height + 8; // 8px gap below button
+
+      // Keep dialog within screen bounds
+      if (dialogLeft < 16) dialogLeft = 16;
+      if (dialogLeft + dialogWidth > screenSize.width - 16) {
+        dialogLeft = screenSize.width - dialogWidth - 16;
+      }
+
+      // Ensure dialog doesn't go below visible screen
+      if (dialogTop + 300 > screenSize.height - 50) {
+        // Position above the button instead
+        dialogTop = buttonPosition.dy - 8; // 8px gap above button
+      }
+    } else {
+      // Fallback to center of screen
+      dialogLeft = (screenSize.width - dialogWidth) / 2;
+      dialogTop = screenSize.height / 2 - 100;
+    }
 
     showDialog(
       context: context,
@@ -421,11 +535,8 @@ class DialogUtils {
       builder: (context) => Stack(
         children: [
           Positioned(
-            top: MediaQuery.of(context).size.height / 2 - 40,
-            left: 110,
-
-            // bottom: 60,
-
+            top: dialogTop,
+            left: dialogLeft,
             child: Material(
               color: Colors.transparent,
               child: ClipRRect(
@@ -435,11 +546,14 @@ class DialogUtils {
                   child: Container(
                     width: 200,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.85) : Colors.white.withOpacity(0.85),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black.withOpacity(0.85)
+                          : Colors.white.withOpacity(0.85),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.black.withOpacity(0.3) // Dark Mode: Use highly opaque white
+                            ? Colors.black.withOpacity(
+                                0.3) // Dark Mode: Use highly opaque white
                             : Colors.white.withOpacity(0.3),
                         width: 1.5,
                       ),
@@ -464,7 +578,8 @@ class DialogUtils {
                           children: [
                             Obx(() => InkWell(
                                   onTap: () {
-                                    controller.changeLanguage(language, translateId);
+                                    controller.changeLanguage(
+                                        language, translateId);
                                     Navigator.pop(context);
                                   },
                                   child: Padding(
@@ -484,7 +599,9 @@ class DialogUtils {
                                             ),
                                           ),
                                         ),
-                                        if (controller.selectedTranslateId.value == translateId)
+                                        if (controller
+                                                .selectedTranslateId.value ==
+                                            translateId)
                                           const Icon(
                                             Icons.check,
                                             size: 24,
@@ -508,43 +625,6 @@ class DialogUtils {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  static Widget _buildMenuOption({
-    required String icon,
-    required String title,
-    required VoidCallback onTap,
-    required BuildContext context,
-    Color? titleColor,
-    Color? iconColor,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 17,
-                  color: titleColor,
-                  fontFamily: StringConstants.SFPro,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ),
-            CustomIcon(
-              title: icon,
-              height: 24,
-              width: 24,
-              color: iconColor ?? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
-            )
-          ],
-        ),
       ),
     );
   }
@@ -575,7 +655,8 @@ class DialogUtils {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -726,9 +807,12 @@ class DialogUtils {
                     const SizedBox(height: 16),
 
                     // Dynamic info rows
-                    if (controller.getAuthorsString().isNotEmpty) _buildInfoRow('author'.tr, controller.getAuthorsString()),
+                    if (controller.getAuthorsString().isNotEmpty)
+                      _buildInfoRow('author'.tr, controller.getAuthorsString()),
 
-                    if (controller.selectedLanguage.value.isNotEmpty) _buildInfoRow('language'.tr, controller.selectedLanguage.value),
+                    if (controller.selectedLanguage.value.isNotEmpty)
+                      _buildInfoRow(
+                          'language'.tr, controller.selectedLanguage.value),
 
                     if (bookDetail.genres.isNotEmpty)
                       _buildInfoRow(
@@ -749,7 +833,8 @@ class DialogUtils {
                       ),
 
                     // Progress info (if exists)
-                    if (bookDetail.progress != null && bookDetail.progress!.isNotEmpty)
+                    if (bookDetail.progress != null &&
+                        bookDetail.progress!.isNotEmpty)
                       _buildInfoRow(
                         'progress'.tr,
                         '${bookDetail.progress}%',
@@ -759,7 +844,9 @@ class DialogUtils {
                     if (bookDetail.translates.isNotEmpty)
                       _buildInfoRow(
                         'available_language'.tr,
-                        bookDetail.translates.map((t) => _getLanguageName(t.language)).join(', '),
+                        bookDetail.translates
+                            .map((t) => _getLanguageName(t.language))
+                            .join(', '),
                         isLast: true,
                       ),
                   ],
@@ -767,6 +854,250 @@ class DialogUtils {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  static void showIOSStylePopup(BuildContext context, Function onOpenBook,
+      Function onShare, Function onEdit, Function onRemove) {
+    showDialog(
+      context: context,
+      barrierColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.white24 // light semi-transparent overlay in dark mode
+          : Colors.black26,
+      builder: (context) => Stack(
+        children: [
+          Positioned(
+            top: 120,
+            right: 40,
+            child: Material(
+              color: Colors.transparent,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    width: 200,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black.withOpacity(0.75)
+                          : Colors.white.withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withOpacity(0.3)
+                            : Colors.white.withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildIOSMenuOption(
+                          context,
+                          iconPath: IconConstants.d11,
+                          title: 'open_book'.tr,
+                          onTap: () => onOpenBook(),
+                        ),
+                        Container(
+                          height: 6,
+                          color: Colors.grey[400],
+                        ),
+                        _buildIOSMenuOption(
+                          context,
+                          iconPath: IconConstants.d1,
+                          title: 'share'.tr,
+                          onTap: () => onShare(),
+                        ),
+                        Divider(
+                          height: 1,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(
+                                  0.1) // subtle divider in dark mode
+                              : Colors.grey.withOpacity(
+                                  0.2), // light divider in light mode
+                        ),
+                        _buildIOSMenuOption(
+                          context,
+                          iconPath: IconConstants.d10,
+                          title: 'edit'.tr,
+                          onTap: () => onEdit(),
+                        ),
+                        Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+                        _buildIOSMenuOption(
+                          context,
+                          iconPath: IconConstants.d6,
+                          title: 'delete'.tr,
+                          iconColor: const Color(0xFFFF5A3C),
+                          titleColor: const Color(0xFFFF5A3C),
+                          onTap: () => onRemove(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void showIOSStylePopupAtPosition(
+    BuildContext context,
+    RelativeRect position,
+    Function onOpenBook,
+    Function onShare,
+    Function onEdit,
+    Function onRemove,
+  ) {
+    showDialog(
+      context: context,
+      barrierColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.white24
+          : Colors.black26,
+      builder: (context) {
+        final screenSize = MediaQuery.of(context).size;
+        const menuWidth = 200.0;
+        const menuPadding = 40.0;
+        const menuHeightEstimate = 230.0;
+
+        final left = (position.left)
+            .clamp(menuPadding, screenSize.width - menuWidth - menuPadding);
+        final top = (position.top).clamp(
+            menuPadding, screenSize.height - menuHeightEstimate - menuPadding);
+
+        return Stack(
+          children: [
+            Positioned(
+              left: left,
+              top: top + 20,
+              child: Material(
+                color: Colors.transparent,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      width: menuWidth,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withOpacity(0.75)
+                            : Colors.white.withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.black.withOpacity(0.3)
+                              : Colors.white.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildIOSMenuOption(
+                            context,
+                            iconPath: IconConstants.d11,
+                            title: 'open_book'.tr,
+                            onTap: () => onOpenBook(),
+                          ),
+                          Container(
+                            height: 6,
+                            color: Colors.grey[400],
+                          ),
+                          _buildIOSMenuOption(
+                            context,
+                            iconPath: IconConstants.d1,
+                            title: 'share'.tr,
+                            onTap: () => onShare(),
+                          ),
+                          Divider(
+                            height: 1,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.1)
+                                    : Colors.grey.withOpacity(0.2),
+                          ),
+                          _buildIOSMenuOption(
+                            context,
+                            iconPath: IconConstants.d10,
+                            title: 'edit'.tr,
+                            onTap: () => onEdit(),
+                          ),
+                          Divider(
+                              height: 1, color: Colors.grey.withOpacity(0.2)),
+                          _buildIOSMenuOption(
+                            context,
+                            iconPath: IconConstants.d6,
+                            title: 'delete'.tr,
+                            iconColor: const Color(0xFFFF5A3C),
+                            titleColor: const Color(0xFFFF5A3C),
+                            onTap: () => onRemove(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static Widget _buildMenuOption({
+    required String icon,
+    required String title,
+    required VoidCallback onTap,
+    required BuildContext context,
+    Color? titleColor,
+    Color? iconColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  color: titleColor,
+                  fontFamily: StringConstants.SFPro,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+            CustomIcon(
+              title: icon,
+              height: 24,
+              width: 24,
+              color: iconColor ??
+                  (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black),
+            )
+          ],
         ),
       ),
     );
@@ -792,7 +1123,8 @@ class DialogUtils {
     }
   }
 
-  static Widget _buildInfoRow(String label, String value, {bool isLast = false}) {
+  static Widget _buildInfoRow(String label, String value,
+      {bool isLast = false}) {
     return Column(
       children: [
         Padding(
@@ -831,92 +1163,6 @@ class DialogUtils {
             color: Colors.grey.withOpacity(0.3),
           ),
       ],
-    );
-  }
-
-  static void showIOSStylePopup(BuildContext context, Function onOpenBook, Function onShare, Function onEdit, Function onRemove) {
-    showDialog(
-      context: context,
-      barrierColor: Theme.of(context).brightness == Brightness.dark
-          ? Colors.white24 // light semi-transparent overlay in dark mode
-          : Colors.black26,
-      builder: (context) => Stack(
-        children: [
-          Positioned(
-            top: 120,
-            right: 40,
-            child: Material(
-              color: Colors.transparent,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Container(
-                    width: 200,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.3) : Colors.white.withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 30,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildIOSMenuOption(
-                          context,
-                          iconPath: IconConstants.d11,
-                          title: 'open_book'.tr,
-                          onTap: () => onOpenBook(),
-                        ),
-                        Container(
-                          height: 6,
-                          color: Colors.grey[400],
-                        ),
-                        _buildIOSMenuOption(
-                          context,
-                          iconPath: IconConstants.d1,
-                          title: 'share'.tr,
-                          onTap: () => onShare(),
-                        ),
-                        Divider(
-                          height: 1,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.1) // subtle divider in dark mode
-                              : Colors.grey.withOpacity(0.2), // light divider in light mode
-                        ),
-                        _buildIOSMenuOption(
-                          context,
-                          iconPath: IconConstants.d10,
-                          title: 'edit'.tr,
-                          onTap: () => onEdit(),
-                        ),
-                        Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
-                        _buildIOSMenuOption(
-                          context,
-                          iconPath: IconConstants.d6,
-                          title: 'delete'.tr,
-                          iconColor: const Color(0xFFFF5A3C),
-                          titleColor: const Color(0xFFFF5A3C),
-                          onTap: () => onRemove(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -961,7 +1207,8 @@ class DialogUtils {
   }
 
   // Show report issue dialog
-  static void _showReportIssueDialog(BuildContext context, BooksDetailController controller) {
+  static void _showReportIssueDialog(
+      BuildContext context, BooksDetailController controller) {
     final TextEditingController problemController = TextEditingController();
     bool isSubmitting = false;
 
@@ -1009,7 +1256,8 @@ class DialogUtils {
                             icon: const Icon(Icons.close),
                             onPressed: () {
                               Navigator.pop(sheetContext);
-                              Future.delayed(const Duration(milliseconds: 300), () {
+                              Future.delayed(const Duration(milliseconds: 300),
+                                  () {
                                 problemController.dispose();
                               });
                             },
@@ -1045,7 +1293,8 @@ class DialogUtils {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFFF5A3C)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFFF5A3C)),
                           ),
                           filled: true,
                           fillColor: Colors.grey[50],
@@ -1060,12 +1309,14 @@ class DialogUtils {
                             child: OutlinedButton(
                               onPressed: () {
                                 Navigator.pop(sheetContext);
-                                Future.delayed(const Duration(milliseconds: 300), () {
+                                Future.delayed(
+                                    const Duration(milliseconds: 300), () {
                                   problemController.dispose();
                                 });
                               },
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -1086,9 +1337,12 @@ class DialogUtils {
                             child: ElevatedButton(
                               onPressed: !isSubmitting
                                   ? () async {
-                                      final problem = problemController.text.trim();
+                                      final problem =
+                                          problemController.text.trim();
                                       if (problem.isEmpty) {
-                                        AppSnackbar.error('please_enter_issue_description'.tr);
+                                        AppSnackbar.error(
+                                            'please_enter_issue_description'
+                                                .tr);
                                         return;
                                       }
 
@@ -1096,28 +1350,34 @@ class DialogUtils {
                                         isSubmitting = true;
                                       });
 
-                                      final success = await controller.sendProblemReport(problem);
+                                      final success = await controller
+                                          .sendProblemReport(problem);
 
                                       if (success) {
                                         if (sheetContext.mounted) {
                                           Navigator.pop(sheetContext);
                                         }
-                                        Future.delayed(const Duration(milliseconds: 300), () {
+                                        Future.delayed(
+                                            const Duration(milliseconds: 300),
+                                            () {
                                           problemController.dispose();
                                         });
-                                        AppSnackbar.success('issue_reported_successfully'.tr);
+                                        AppSnackbar.success(
+                                            'issue_reported_successfully'.tr);
                                       } else {
                                         safeSetState(() {
                                           isSubmitting = false;
                                         });
-                                        AppSnackbar.error('failed_to_report_issue'.tr);
+                                        AppSnackbar.error(
+                                            'failed_to_report_issue'.tr);
                                       }
                                     }
                                   : null,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFFF5A3C),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -1128,7 +1388,9 @@ class DialogUtils {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                Colors.white),
                                       ),
                                     )
                                   : Text(
@@ -1151,5 +1413,54 @@ class DialogUtils {
         },
       ),
     );
+  }
+
+  static Future<void> _handleOpenReader(
+      BooksDetailController controller, BuildContext context) async {
+    if (controller.bookDetail.value?.translates.isEmpty ?? true) {
+      await controller.fetchBookDetail(controller.bookDetail.value?.id ?? 0);
+    }
+
+    final imageUrl = controller.getBookCoverImage();
+    final translate = controller.getCurrentTranslate();
+
+    final bookKey = translate?.bookKey;
+    final bookId = controller.bookDetail.value?.id.toString() ?? '0';
+
+    if (bookKey != null && bookKey.isNotEmpty && translate != null) {
+      final bookDetail = controller.bookDetail.value!;
+      final book = Book(
+        id: bookDetail.id,
+        name: bookDetail.name,
+        image: bookDetail.image ?? bookDetail.translates.firstOrNull?.image,
+        age: bookDetail.age,
+        year: bookDetail.year,
+        likedBookId: bookDetail.likedBookId,
+        authors: bookDetail.authors
+            .map((author) => BookAuthor(
+                  id: author.id,
+                  name: author.name,
+                  image: author.image,
+                ))
+            .toList(),
+      );
+
+      Get.back(); // Close audio player
+
+      await Get.to(
+        () => EpubReaderScreen(
+          imageUrl: imageUrl,
+          epubPath: bookKey,
+          bookDescription: translate.description ?? '',
+          bookId: bookId,
+          isAddedToWantToRead: controller.isAddedToWantToRead.value,
+          isMarkedAsFinished: controller.isMarkedAsFinished.value,
+          book: book,
+          translateId: translate.id,
+        ),
+      );
+    } else {
+      AppSnackbar.error('bookFileNotAvailable'.tr);
+    }
   }
 }

@@ -3,10 +3,11 @@ import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/common/custom_icon.dart';
 import 'package:elkitap/core/widgets/states/error_state_widget.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
+import 'package:elkitap/core/widgets/widgets.dart';
 import 'package:elkitap/modules/library/controllers/note_controller.dart';
 import 'package:elkitap/modules/library/model/note_item_model.dart';
 import 'package:elkitap/modules/library/widgets/note_cart.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
@@ -56,7 +57,7 @@ class _NotesScreenState extends State<NotesScreen> {
     return AppBar(
       backgroundColor: _getBackgroundColor(),
       elevation: 0,
-      leadingWidth: 140,
+      leadingWidth: 170,
       leading: _buildAppBarLeading(),
       actions: _buildAppBarActions(),
     );
@@ -70,27 +71,19 @@ class _NotesScreenState extends State<NotesScreen> {
               controller.isAllSelected ? 'deselectAll'.tr : 'selectAll'.tr,
               style: TextStyle(
                 fontFamily: StringConstants.SFPro,
-                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black,
                 fontSize: 17,
               ),
             )),
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 10),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Get.back(),
-            child: const Icon(Icons.arrow_back_ios),
-          ),
-          Text(
-            'leading_text'.tr,
-            style: const TextStyle(fontFamily: StringConstants.SFPro),
-          ),
-        ],
-      ),
+    return CustomAppBar(
+      title: '',
+      showBackButton: true,
+      leadingText: 'leading_text'.tr,
     );
   }
 
@@ -112,7 +105,9 @@ class _NotesScreenState extends State<NotesScreen> {
           child: Text(
             'done'.tr,
             style: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
               fontSize: 17,
             ),
           ),
@@ -130,7 +125,9 @@ class _NotesScreenState extends State<NotesScreen> {
         child: Text(
           'select'.tr,
           style: TextStyle(
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
             fontFamily: StringConstants.SFPro,
             fontSize: 17,
           ),
@@ -212,7 +209,8 @@ class _NotesScreenState extends State<NotesScreen> {
         padding: const EdgeInsets.all(16),
         itemCount: controller.notes.length,
         physics: const AlwaysScrollableScrollPhysics(),
-        itemBuilder: (context, index) => _buildNoteItem(controller.notes[index]),
+        itemBuilder: (context, index) =>
+            _buildNoteItem(controller.notes[index]),
       ),
     );
   }
@@ -257,18 +255,24 @@ Shared from ElKitap
 """;
 
     final box = context.findRenderObject() as RenderBox?;
-    final rect = box != null ? box.localToGlobal(Offset.zero) & box.size : const Rect.fromLTWH(0, 0, 0, 0);
+    final rect = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : const Rect.fromLTWH(0, 0, 0, 0);
 
     Share.share(text, sharePositionOrigin: rect);
   }
 
-  void _showEditBottomSheet(BuildContext context, NoteItem note, NotesController controller) {
-    final textController = TextEditingController(text: note.comment);
+  void _showEditBottomSheet(
+      BuildContext context, NoteItem note, NotesController controller) {
+    final snippetController = TextEditingController(text: note.snippet);
+    final noteController = TextEditingController(text: note.note);
     final selectedColor = note.color.obs;
     final hasChanges = false.obs;
 
     void checkForChanges() {
-      hasChanges.value = textController.text != note.comment || selectedColor.value != note.color;
+      hasChanges.value = snippetController.text != note.snippet ||
+          noteController.text != note.note ||
+          selectedColor.value != note.color;
     }
 
     showModalBottomSheet(
@@ -278,7 +282,8 @@ Shared from ElKitap
       builder: (context) => _buildEditBottomSheetContent(
         context,
         note,
-        textController,
+        snippetController,
+        noteController,
         selectedColor,
         hasChanges,
         checkForChanges,
@@ -289,7 +294,8 @@ Shared from ElKitap
   Widget _buildEditBottomSheetContent(
     BuildContext context,
     NoteItem note,
-    TextEditingController textController,
+    TextEditingController snippetController,
+    TextEditingController noteController,
     Rx<Color> selectedColor,
     RxBool hasChanges,
     VoidCallback checkForChanges,
@@ -297,15 +303,26 @@ Shared from ElKitap
     return Obx(() => Container(
           height: MediaQuery.of(context).size.height * 0.9,
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.black
+                : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             children: [
-              _buildEditHeader(context, note, textController, selectedColor),
-              _buildEditTextField(textController, selectedColor, checkForChanges),
+              _buildEditHeader(context, note, snippetController, noteController,
+                  selectedColor),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildEditTextField(snippetController,
+                        noteController, selectedColor, checkForChanges),
+                  ),
+                ),
+              ),
               _buildColorPicker(selectedColor, checkForChanges),
-              const SizedBox(height: 15),
+              SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 15),
             ],
           ),
         ));
@@ -314,7 +331,8 @@ Shared from ElKitap
   Widget _buildEditHeader(
     BuildContext context,
     NoteItem note,
-    TextEditingController textController,
+    TextEditingController snippetController,
+    TextEditingController noteController,
     Rx<Color> selectedColor,
   ) {
     return Padding(
@@ -326,7 +344,8 @@ Shared from ElKitap
             'notes'.tr,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
           ),
-          _buildDoneButton(context, note, textController, selectedColor),
+          _buildDoneButton(
+              context, note, snippetController, noteController, selectedColor),
         ],
       ),
     );
@@ -335,26 +354,34 @@ Shared from ElKitap
   Widget _buildDoneButton(
     BuildContext context,
     NoteItem note,
-    TextEditingController textController,
+    TextEditingController snippetController,
+    TextEditingController noteController,
     Rx<Color> selectedColor,
   ) {
     return Obx(() {
       return TextButton(
-        onPressed: controller.isUpdating.value ? null : () => _handleNoteSave(context, note, textController, selectedColor),
+        onPressed: controller.isUpdating.value
+            ? null
+            : () => _handleNoteSave(context, note, snippetController,
+                noteController, selectedColor),
         child: controller.isUpdating.value
             ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
                 ),
               )
             : Text(
                 'done'.tr,
                 style: TextStyle(
                   fontSize: 17,
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
                   fontFamily: StringConstants.SFPro,
                   fontWeight: FontWeight.w600,
                 ),
@@ -366,20 +393,20 @@ Shared from ElKitap
   Future<void> _handleNoteSave(
     BuildContext context,
     NoteItem note,
-    TextEditingController textController,
+    TextEditingController snippetController,
+    TextEditingController noteController,
     Rx<Color> selectedColor,
   ) async {
     controller.updateNoteColor(note.id, selectedColor.value);
 
-    final currentText = textController.text;
-    if (currentText != note.comment) {
-      final lines = currentText.split('\n');
-      final snippet = lines.isNotEmpty ? lines.first : currentText;
+    final currentSnippet = snippetController.text;
+    final currentNote = noteController.text;
 
+    if (currentSnippet != note.snippet || currentNote != note.note) {
       final result = await controller.updateNote(
         noteId: note.id,
-        note: currentText,
-        snippet: snippet,
+        note: currentNote,
+        snippet: currentSnippet,
       );
 
       if (result['success']) {
@@ -391,43 +418,61 @@ Shared from ElKitap
   }
 
   Widget _buildEditTextField(
-    TextEditingController textController,
+    TextEditingController snippetController,
+    TextEditingController noteController,
     Rx<Color> selectedColor,
     VoidCallback checkForChanges,
   ) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 4,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: selectedColor.value,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Expanded(
-              child: TextField(
-                controller: textController,
-                maxLines: null,
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  hintText: 'notes'.tr,
+    return Column(
+      children: [
+        IntrinsicHeight(
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  color: selectedColor.value,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                style: const TextStyle(fontSize: 17),
-                onChanged: (_) => checkForChanges(),
               ),
-            ),
-          ],
+              Expanded(
+                child: TextField(
+                  controller: snippetController,
+                  maxLines: null,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'snippet'.tr,
+                  ),
+                  style: const TextStyle(fontSize: 17),
+                  onChanged: (_) => checkForChanges(),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: TextField(
+            controller: noteController,
+            maxLines: null,
+            textAlignVertical: TextAlignVertical.top,
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              hintText: 'add_note'.tr,
+              contentPadding: EdgeInsets.zero,
+            ),
+            style: const TextStyle(fontSize: 17),
+            onChanged: (_) => checkForChanges(),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildColorPicker(Rx<Color> selectedColor, VoidCallback checkForChanges) {
+  Widget _buildColorPicker(
+      Rx<Color> selectedColor, VoidCallback checkForChanges) {
     final colors = [
       Colors.grey,
       Colors.red,
@@ -443,7 +488,8 @@ Shared from ElKitap
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: colors
-            .map((color) => _buildColorButton(color, selectedColor.value, (newColor) {
+            .map((color) =>
+                _buildColorButton(color, selectedColor.value, (newColor) {
                   selectedColor.value = newColor;
                   checkForChanges();
                 }))
@@ -452,7 +498,8 @@ Shared from ElKitap
     );
   }
 
-  Widget _buildColorButton(Color color, Color selectedColor, Function(Color) onTap) {
+  Widget _buildColorButton(
+      Color color, Color selectedColor, Function(Color) onTap) {
     final isSelected = color == selectedColor;
     return GestureDetector(
       onTap: () => onTap(color),

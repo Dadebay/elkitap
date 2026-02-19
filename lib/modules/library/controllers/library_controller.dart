@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, avoid_print
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:elkitap/core/constants/string_constants.dart';
@@ -26,10 +26,7 @@ class ReadingListController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    booksController = Get.put(
-      GetAllBooksController(),
-      tag: 'reading_list_$type',
-    );
+    booksController = Get.put(GetAllBooksController(), tag: 'reading_list_$type');
     loadBooks();
   }
 
@@ -46,13 +43,21 @@ class ReadingListController extends GetxController {
   String get errorMessage => booksController.errorMessage.value;
 
   void loadBooks() {
+    print('\n📚 ========== LOADING BOOKS ==========');
+    print('   Type: $type');
+
     if (type == 'read') {
+      print('   Calling: getBooksWantToRead()');
       booksController.getBooksWantToRead();
     } else if (type == 'listen') {
+      print('   Calling: getBooksWantToListen()');
       booksController.getBooksWantToListen();
     } else if (type == 'finished') {
+      print('   Calling: getFinishedBooks()');
       booksController.getFinishedBooks();
     }
+
+    print('====================================\n');
   }
 
   Future<void> loadMoreBooks() async {

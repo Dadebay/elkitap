@@ -9,8 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class TopOfWeekSection extends StatefulWidget {
-  final int tabIndex;
   const TopOfWeekSection({this.tabIndex = 0, super.key});
+
+  final int tabIndex;
 
   @override
   State<TopOfWeekSection> createState() => _TopOfWeekSectionState();
@@ -18,36 +19,8 @@ class TopOfWeekSection extends StatefulWidget {
 
 class _TopOfWeekSectionState extends State<TopOfWeekSection> {
   late GetAllBooksController controller;
-  late PageController pageController;
   int lastPage = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = Get.put(GetAllBooksController(), tag: 'top_of_week_${widget.tabIndex}');
-    pageController = PageController(viewportFraction: 0.85);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.searchBooksWithFilters(
-        topOfTheWeekFilter: true,
-        withAudioFilter: widget.tabIndex == 1,
-      );
-    });
-
-    // PageView listener for pagination
-    pageController.addListener(() {
-      if (!pageController.hasClients) return;
-
-      final currentPage = pageController.page?.round() ?? 0;
-      final totalPages = (controller.books.length / 3).ceil();
-
-      // Son sayfalara yaklaşıldığında ve daha fazla veri varsa yükle
-      if (currentPage >= totalPages - 2 && currentPage != lastPage && !controller.isLoadingMore.value && controller.hasMore.value) {
-        lastPage = currentPage;
-        controller.loadMoreBooks();
-      }
-    });
-  }
+  late PageController pageController;
 
   @override
   void dispose() {
@@ -56,15 +29,48 @@ class _TopOfWeekSectionState extends State<TopOfWeekSection> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    controller =
+        Get.put(GetAllBooksController(), tag: 'top_of_week_${widget.tabIndex}');
+    pageController = PageController(viewportFraction: 0.85);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.searchBooksWithFilters(
+        topOfTheWeekFilter: true,
+        withAudioFilter: widget.tabIndex == 1,
+      );
+    });
+
+    pageController.addListener(() {
+      if (!pageController.hasClients) return;
+      final currentPage = pageController.page?.round() ?? 0;
+      final totalPages = (controller.books.length / 3).ceil();
+      if (currentPage >= totalPages - 2 &&
+          currentPage != lastPage &&
+          !controller.isLoadingMore.value &&
+          controller.hasMore.value) {
+        lastPage = currentPage;
+        controller.loadMoreBooks();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 28, right: 32, bottom: 12, top: 40),
+          padding:
+              const EdgeInsets.only(left: 28, right: 32, bottom: 12, top: 40),
           child: GestureDetector(
             onTap: () {
-              Get.to(() => BooksGridScreen(title: "top_of_the_week_t".tr, id: 0, isWeekly: true));
+              Get.to(() => BooksGridScreen(
+                    title: "top_of_the_week_t".tr,
+                    id: 0,
+                    isWeekly: true,
+                    isAudio: widget.tabIndex == 1,
+                  ));
             },
             child: Text(
               "top_of_the_week_t".tr,

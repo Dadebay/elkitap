@@ -27,7 +27,7 @@ class PaymentController extends GetxController {
   final RxList<PaymentHistoryModel> paymentHistory = <PaymentHistoryModel>[].obs;
 
   // Payment status state
-  final RxBool isPaymentActive = true.obs;
+  final RxBool isPaymentActive = false.obs;
 
   @override
   void onInit() {
@@ -43,15 +43,15 @@ class PaymentController extends GetxController {
 
       if (response['statusCode'] == 200) {
         if (response['data'] != null && response['data']['is_active'] == true) {
-          isPaymentActive.value = false;
-        } else {
           isPaymentActive.value = true;
+        } else {
+          isPaymentActive.value = false;
         }
       }
     } catch (e) {
       print('Error checking payment status: $e');
-      // Default to true on error to avoid blocking valid users
-      isPaymentActive.value = true;
+      // Default to false on error to show audio book
+      isPaymentActive.value = false;
     }
   }
 

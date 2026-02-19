@@ -77,21 +77,34 @@ class _AiDescriptionScreenState extends State<AiDescriptionScreen> with SingleTi
 
     final textStyle = TextStyle(
       fontSize: _fontSize.value,
-      height: 1,
+      height: 1.7,
       color: _isDarkMode.value ? Colors.white70 : Colors.black87,
     );
 
     final maxWidth = size.width - 32;
 
-    final double lineHeight = _fontSize.value * 1;
+    // Calculate available height dynamically based on screen size
+    // Account for: AppBar (~56), SafeArea top/bottom (~88), Page counter (~60), Padding (~60)
+    final double reservedSpace = 56 + 88 + 60 + 80;
+    final double availableHeight = size.height - reservedSpace;
 
-    // Use this height for pagination constraints
-    final double maxHeight = 15 * lineHeight;
+    // Use 85% of available height to ensure content fits without scrolling
+    final double maxHeight = availableHeight * 0.85;
+
+    // Debug prints
+    print('🔍 AI Description Pagination Debug:');
+    print('   Screen height: ${size.height}');
+    print('   Screen width: ${size.width}');
+    print('   Reserved space: $reservedSpace');
+    print('   Available height: $availableHeight');
+    print('   Max height (85%): $maxHeight');
+    print('   Max width: $maxWidth');
 
     final words = aiDescription.split(RegExp(r'\s+'));
 
     String currentText = '';
     List<String> pages = [];
+    int pageCount = 0;
 
     for (final word in words) {
       final testText = currentText.isEmpty ? word : '$currentText $word';
@@ -105,6 +118,17 @@ class _AiDescriptionScreenState extends State<AiDescriptionScreen> with SingleTi
 
       if (painter.height > maxHeight) {
         pages.add(currentText.trim());
+        pageCount++;
+
+        // Print actual height of this page
+        final actualPainter = TextPainter(
+          text: TextSpan(text: currentText.trim(), style: textStyle),
+          textDirection: TextDirection.ltr,
+        );
+        actualPainter.layout(maxWidth: maxWidth);
+        print('   Page $pageCount height: ${actualPainter.height} / $maxHeight (${(actualPainter.height / maxHeight * 100).toStringAsFixed(1)}%)');
+        actualPainter.dispose();
+
         currentText = word;
       } else {
         currentText = testText;
@@ -115,7 +139,19 @@ class _AiDescriptionScreenState extends State<AiDescriptionScreen> with SingleTi
 
     if (currentText.isNotEmpty) {
       pages.add(currentText.trim());
+      pageCount++;
+
+      // Print last page height
+      final actualPainter = TextPainter(
+        text: TextSpan(text: currentText.trim(), style: textStyle),
+        textDirection: TextDirection.ltr,
+      );
+      actualPainter.layout(maxWidth: maxWidth);
+      print('   Page $pageCount height: ${actualPainter.height} / $maxHeight (${(actualPainter.height / maxHeight * 100).toStringAsFixed(1)}%)');
+      actualPainter.dispose();
     }
+
+    print('   Total pages created: $pageCount');
 
     _pages.value = pages;
   }
@@ -260,18 +296,14 @@ class _AiDescriptionScreenState extends State<AiDescriptionScreen> with SingleTi
                           horizontal: 16,
                           vertical: 10,
                         ),
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 50),
-                            child: Text(
-                              _pages[index],
-                              overflow: TextOverflow.visible,
-                              style: TextStyle(
-                                fontSize: _fontSize.value,
-                                height: 1.7,
-                                color: _isDarkMode.value ? Colors.white70 : Colors.black87,
-                              ),
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: Text(
+                            _pages[index],
+                            style: TextStyle(
+                              fontSize: _fontSize.value,
+                              height: 1.7,
+                              color: _isDarkMode.value ? Colors.white70 : Colors.black87,
                             ),
                           ),
                         ),

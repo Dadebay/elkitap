@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
-import 'package:cosmos_epub/cosmos_epub.dart';
-import 'package:epubx/epubx.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:elkitap/data/network/network_manager.dart';
 
@@ -143,7 +141,8 @@ class BookLoaderService {
     final sink = file.openWrite();
 
     final startTime = DateTime.now();
-    final totalBytes = resp.contentLength > 0 ? resp.contentLength : expectedSize;
+    final totalBytes =
+        resp.contentLength > 0 ? resp.contentLength : expectedSize;
     int receivedBytes = 0;
 
     await for (final chunk in resp) {
@@ -161,25 +160,14 @@ class BookLoaderService {
 
     final downloadDuration = DateTime.now().difference(startTime);
     final finalSize = await file.length();
-    final avgSpeed = downloadDuration.inSeconds > 0 ? finalSize / downloadDuration.inSeconds : finalSize;
+    final avgSpeed = downloadDuration.inSeconds > 0
+        ? finalSize / downloadDuration.inSeconds
+        : finalSize;
 
     log('⬇️ ✅ Download completed!');
     log('⬇️ Final size: ${(finalSize / 1024 / 1024).toStringAsFixed(2)} MB');
     log('⬇️ Duration: ${downloadDuration.inSeconds}s');
     log('⬇️ Avg speed: ${(avgSpeed / 1024 / 1024).toStringAsFixed(2)} MB/s');
-  }
-
-  /// Parse EPUB book from local file
-  Future<EpubBook> parseBook(String localPath) async {
-    log('📖 Parsing book from: $localPath');
-    final parseStart = DateTime.now();
-
-    final epubBook = await CosmosEpub.parseLocalBook(localPath: localPath);
-
-    final parseDuration = DateTime.now().difference(parseStart);
-    log('📖 ✅ Book parsed in ${parseDuration.inMilliseconds}ms');
-
-    return epubBook;
   }
 
   /// Delete local cached book
@@ -202,7 +190,8 @@ class BookLoaderService {
       if (statusCode == 401) return true;
 
       final error = response['error']?.toString().toLowerCase() ?? '';
-      final message = response['data']?['message']?.toString().toLowerCase() ?? '';
+      final message =
+          response['data']?['message']?.toString().toLowerCase() ?? '';
 
       return error.contains('authentication required') ||
           error.contains('unauthorized') ||

@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
-import 'package:archive/archive.dart';
-import 'package:cosmos_epub/cosmos_epub.dart';
-import 'package:epubx/epubx.dart' hide Image;
+import 'dart:async';
+import 'package:flutter_epub_viewer/flutter_epub_viewer.dart' as epub;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:get/get.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/theme/app_colors.dart';
 import 'package:elkitap/data/network/network_manager.dart';
@@ -20,17 +19,16 @@ import 'package:elkitap/modules/reader/services/book_loader_service.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
 import 'package:elkitap/modules/store/controllers/book_detail_controller.dart';
 import 'package:elkitap/modules/store/model/book_item_model.dart';
+import 'package:elkitap/modules/reader/models/reader_theme_model.dart';
+import 'package:elkitap/modules/reader/widgets/chapter_drawer.dart';
+import 'package:elkitap/modules/reader/widgets/theme_settings_sheet.dart';
+import 'package:elkitap/modules/reader/widgets/add_note_sheet.dart';
+import 'package:elkitap/modules/reader/widgets/reader_actions_sheet.dart';
+import 'package:elkitap/modules/reader/helpers/reader_helpers.dart';
+import 'package:elkitap/modules/reader/helpers/book_download_service.dart';
+import 'package:elkitap/modules/reader/helpers/reader_ui_builder.dart';
 
 class EpubReaderScreen extends StatefulWidget {
-  final String imageUrl;
-  final String? epubPath;
-  final String bookId;
-  final String bookDescription;
-  final bool? isAddedToWantToRead;
-  final bool? isMarkedAsFinished;
-  final Book? book;
-  final int? translateId;
-
   const EpubReaderScreen({
     required this.imageUrl,
     required this.bookDescription,
@@ -43,49 +41,108 @@ class EpubReaderScreen extends StatefulWidget {
     super.key,
   });
 
+  final Book? book;
+  final String bookDescription;
+  final String bookId;
+  final String? epubPath;
+  final String imageUrl;
+  final bool? isAddedToWantToRead;
+  final bool? isMarkedAsFinished;
+  final int? translateId;
+
   @override
   State<EpubReaderScreen> createState() => _EpubReaderScreenState();
 }
 
 class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMixin, ReaderHandlersMixin {
-  // Controllers
-  late final EpubController controller;
-  late final LibraryMainController libraryMainController;
-  @override
   late final GetAllBooksController allBooksController;
-  late final NotesController notesController;
+
+  late final EpubController controller;
+
   late final BooksDetailController detailController;
+  late final LibraryMainController libraryMainController;
+  late final NotesController notesController;
 
-  // Services
   late final BookLoaderService _bookLoader;
-  final NetworkManager _networkManager = Get.find<NetworkManager>();
 
-  // State
+  List<epub.EpubChapter> _chapters = [];
+  String? _currentCfi;
+  String _currentChapterTitle = '';
+  String? _currentHref;
+
+  late ReaderThemeModel _currentTheme;
+
   double _downloadProgress = 0.0;
-  bool _hasError = false;
+
+  epub.EpubSource? _epubSource;
   String? _errorMessage;
+  int _fontSize = 18;
   bool _hasAppliedAudioProgress = false;
-  EpubBook? _parsedEpubBook;
+  bool _hasError = false;
+  bool _hasInitializedReaderTheme = false;
+  bool _hasStartedInitialization = false;
+  bool _isInitializingBook = false;
+  bool _userHasManuallySelectedTheme = false;
+  Brightness? _lastBrightness;
+  String? _openedFilePath;
+  Key _epubViewerKey = UniqueKey();
 
-  // Getters for mixins
-  @override
-  String get uniqueBookId => _bookLoader.uniqueBookId;
+  bool _isReaderReady = false;
 
-  @override
-  Book? get currentBook => widget.book;
+  bool _isLoadingPages = true;
+  final NetworkManager _networkManager = Get.find<NetworkManager>();
+  String _selectedText = '';
+  String? _selectedCfi;
+  Rect? _selectionRect;
+  bool _showControls = true;
+  DateTime? _touchDownAt;
+
+  double _touchDownX = 0.0;
+
+  double _touchDownY = 0.0;
+  final epub.EpubController _viewerController = epub.EpubController();
+  int _viewerCurrentPage = 1;
+  int _viewerTotalPages = 1;
+  int _liveTotalPages = 1;
+
+  bool _isProgressLongPressed = false;
+  double _tempSliderValue = 0.0;
+  double _dragStartValue = 0.0;
+  double _dragStartLocalX = 0.0;
+  double _lastProgressFactor = 0.0;
+
+  Timer? _initialLoadingTimer;
+
+  String? _cachedLocations;
+
+  bool _isRegeneratingLocations = false;
+  bool _isRestoringProgress = false;
+  double? _pendingRestoreProgress;
+  Timer? _restoreRetryTimer;
+  int _restoreRelocateLogCount = 0;
+  int _restoreRetryCount = 0;
+
+  Map<String, int> _chapterPages = {};
 
   @override
   String get bookId => widget.bookId;
 
   @override
+  Book? get currentBook => widget.book;
+
+  @override
+  void dispose() {
+    _initialLoadingTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
 
-    // Initialize controllers
     libraryMainController = Get.find<LibraryMainController>();
     allBooksController = Get.find<GetAllBooksController>();
 
-    // Initialize book loader service
     _bookLoader = BookLoaderService(
       networkManager: _networkManager,
       bookId: widget.bookId,
@@ -93,66 +150,85 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       translateId: widget.translateId,
     );
 
-    // Get or create book detail controller
     final controllerTag = widget.bookId;
     if (Get.isRegistered<BooksDetailController>(tag: controllerTag)) {
       detailController = Get.find<BooksDetailController>(tag: controllerTag);
-      log('✅ Found existing BooksDetailController with tag: $controllerTag');
+      log('Found existing BooksDetailController with tag: $controllerTag');
     } else {
       detailController = Get.put(BooksDetailController(), tag: controllerTag);
-      log('📝 Created new BooksDetailController with tag: $controllerTag');
+      log('Created new BooksDetailController with tag: $controllerTag');
     }
 
-    // Initialize reader controller
     controller = Get.put(EpubController());
 
-    // Get or create notes controller
     if (Get.isRegistered<NotesController>()) {
       notesController = Get.find<NotesController>();
     } else {
       notesController = Get.put(NotesController());
     }
 
-    // Register handlers
     registerAllHandlers();
-    notesController.setCurrentBook(widget.bookId);
 
-    log("Initializing EpubController with bookId: ${widget.bookId}");
+    log("📚 READER: Initializing EpubController with bookId: ${widget.bookId}");
+    log("   Translate ID: ${widget.translateId}");
+    log("   uniqueBookId: $_uniqueBookId");
+
     controller.initialize(bookId: int.parse(widget.bookId));
 
-    // Use postFrameCallback to avoid setState during build
+    // Safety watchdog: keep loading state strict until VPP is ready
+    _initialLoadingTimer = Timer(const Duration(seconds: 8), () {
+      if (mounted && _isLoadingPages) {
+        log('⏱️ Still waiting for VPP lock; keep loading visible (strict mode)');
+      }
+    });
+
+    // Pre-load cached epub.js locations for fast reopening (font-size-specific)
+    _cachedLocations = getCachedLocationsData(fontSize: _fontSize);
+    if (_cachedLocations != null) {
+      log('⚡ Found cached locations for $_uniqueBookId at fontSize $_fontSize (${_cachedLocations!.length} chars) — will skip locations.generate()');
+    } else {
+      log('📖 No cached locations for $_uniqueBookId at fontSize $_fontSize — first open or font changed');
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      log("📚 READER: PostFrameCallback - setting current book and initializing with progress");
+      notesController.setCurrentBook(widget.bookId);
       _initializeWithProgress();
     });
   }
 
-  // Fetch progress and then initialize book
-  Future<void> _initializeWithProgress() async {
-    try {
-      log('📖 Fetching book detail and progress before opening...');
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-      // Fetch book detail (which includes progress)
-      await detailController.fetchBookDetail(int.parse(widget.bookId));
+    final currentBrightness = Theme.of(context).brightness;
+    final isDarkMode = currentBrightness == Brightness.dark;
 
-      log('✅ Progress fetched, now initializing book...');
-    } catch (e) {
-      log('⚠️ Error fetching progress before init: $e');
-    } finally {
-      // Always initialize the book, even if progress fetch fails
-      await _initializeBook();
+    // Initialize theme on first run
+    if (!_hasInitializedReaderTheme) {
+      _currentTheme = isDarkMode ? ReaderThemeModel.darkThemes.first : ReaderThemeModel.lightThemes.first;
+      _lastBrightness = currentBrightness;
+      _hasInitializedReaderTheme = true;
+      return;
+    }
+
+    // Update theme when system brightness changes, but only if user hasn't manually selected a theme
+    if (_lastBrightness != currentBrightness && !_userHasManuallySelectedTheme) {
+      setState(() {
+        _currentTheme = isDarkMode ? ReaderThemeModel.darkThemes.first : ReaderThemeModel.lightThemes.first;
+        _lastBrightness = currentBrightness;
+      });
+
+      // Update the epub viewer theme if it's already initialized
+      if (_isReaderReady) {
+        _viewerController.updateTheme(theme: _currentTheme.epubTheme);
+      }
     }
   }
 
   @override
-  void dispose() {
-    super.dispose();
-  }
-
-  // Auth error checking methods (for mixin)
-  @override
   bool isAuthError(dynamic error) {
-    final errorStr = error.toString().toLowerCase();
-    return errorStr.contains('authentication required') || errorStr.contains('unauthorized') || errorStr.contains('unauthenticated') || errorStr.contains('401');
+    return ReaderHelpers.isAuthError(error);
   }
 
   @override
@@ -172,111 +248,294 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     );
   }
 
-  // Helper methods
-  String get _uniqueBookId => uniqueBookId;
+  @override
+  String get uniqueBookId => _bookLoader.uniqueBookId;
 
-  void _logError(String msg) => log('❌ ERROR: $msg');
-  void _logInfo(String msg) => log('📘 INFO: $msg');
-
-  bool _isAuthError(dynamic error) => isAuthError(error);
-  void _showLoginBottomSheet() => showLoginBottomSheet();
-
-  bool _isAuthErrorResponse(Map<String, dynamic> response) {
-    if (response['success'] == false) {
-      final statusCode = response['statusCode'];
-      if (statusCode == 401) return true;
-
-      final error = response['error']?.toString().toLowerCase() ?? '';
-      final message = response['data']?['message']?.toString().toLowerCase() ?? '';
-
-      return error.contains('authentication required') ||
-          error.contains('unauthorized') ||
-          error.contains('unauthenticated') ||
-          message.contains('authentication required') ||
-          message.contains('unauthorized') ||
-          message.contains('unauthenticated');
+  Future<void> _initializeWithProgress() async {
+    if (_hasStartedInitialization) {
+      log('⏭️ _initializeWithProgress already started, skipping duplicate call');
+      return;
     }
-    return false;
+    _hasStartedInitialization = true;
+
+    try {
+      log('📚 READER INIT: Starting _initializeWithProgress');
+      log('   Book ID: ${widget.bookId}');
+      log('   uniqueBookId: $_uniqueBookId');
+      log('   Fetching book detail and progress in parallel...');
+
+      final bookDetailFuture = detailController.fetchBookDetail(int.parse(widget.bookId));
+      final progressFuture = detailController.fetchProgress();
+      final initBookFuture = _initializeBook();
+
+      await Future.wait([
+        bookDetailFuture.catchError((e, st) {
+          log('⚠️ fetchBookDetail error (non-fatal): $e');
+        }),
+        progressFuture.catchError((e, st) {
+          log('⚠️ fetchProgress error (non-fatal): $e');
+        }),
+      ]);
+      log('   Book detail and progress fetched');
+
+      await initBookFuture;
+      log('   Book initialization completed');
+    } catch (e, st) {
+      log('❌ Error in _initializeWithProgress: $e');
+      log('Stack trace: $st');
+    }
   }
 
+  String get _uniqueBookId => uniqueBookId;
+
+  void _logError(String msg) => log('ERROR: $msg');
+
+  void _logInfo(String msg) => log('INFO: $msg');
+
+  bool _isAuthError(dynamic error) => ReaderHelpers.isAuthError(error);
+
+  void _showLoginBottomSheet() => showLoginBottomSheet();
+
   double? _getAudioProgress() => getAudioProgress();
+
   void _cacheTotalPages(int totalPages) => cacheTotalPages(totalPages);
+
   void _saveTextProgressToAudio(int currentPage, int totalPages) => saveTextProgressToAudio(currentPage, totalPages);
 
-  Future<void> _syncAudioProgressToTextBook() async {
+  Future<void> _buildChapterPages() async {
+    if (_chapters.isEmpty) {
+      log('⚠️ _buildChapterPages called but _chapters is empty');
+      return;
+    }
+
     try {
-      final audioProgress = getAudioProgress();
-      if (audioProgress == null || audioProgress <= 0) {
-        log('📖 No audio progress to sync');
+      log('🗺️ Building chapter-to-page mapping for ${_chapters.length} chapters...');
+      final pageInfo = await _viewerController.getPageInfo();
+      final totalPages = (pageInfo['totalPages'] as num?)?.toInt() ?? 1;
+      log('📊 Total pages from pageInfo: $totalPages');
+
+      if (totalPages <= 10) {
+        log('⏸️ Skipping chapter page mapping (totalPages=$totalPages too low)');
         return;
       }
 
-      log('🔄 Audio progress found: ${(audioProgress * 100).toStringAsFixed(1)}%');
-      log('📝 Will apply on first page flip...');
+      final accuratePages = await _viewerController.getAllChapterPages();
+      if (accuratePages.isNotEmpty) {
+        _viewerController.updateChapterStartPages(accuratePages);
+        log('✅ Updated ${accuratePages.length} chapter startPage values from JS');
+      }
 
-      // Don't call CosmosEpub.setCurrentPageIndex here
-      // Let the first onPageFlip handle it properly after book is fully loaded
-    } catch (e) {
-      log('⚠️ Error checking audio progress: $e');
+      final Map<String, int> newChapterPages = {};
+
+      for (int i = 0; i < _chapters.length; i++) {
+        final chapter = _chapters[i];
+
+        final page = chapter.startPage ?? (((i * totalPages) / _chapters.length).round() + 1).clamp(1, totalPages);
+        newChapterPages[chapter.href] = page;
+        log('📖 ${chapter.title.trim().replaceAll(RegExp(r'\s+'), ' ')} → page $page (index $i/${_chapters.length})');
+      }
+
+      if (mounted) {
+        setState(() {
+          _chapterPages = newChapterPages;
+        });
+
+        cacheChapterMapping(newChapterPages);
+        log('✅ Chapter pages built and cached: ${_chapterPages.length} chapters mapped (will be refined during navigation)');
+      }
+    } catch (e, stackTrace) {
+      log('❌ Error building chapter pages: $e');
+      log('Stack trace: $stackTrace');
     }
   }
 
   Future<void> _handleClose() async {
     try {
-      log('🔐 CLOSING READER...');
+      log('CLOSING READER...');
       await controller.saveProgressAndClose();
 
       if (detailController.bookDetail.value != null) {
         await detailController.fetchProgress();
-        log('✅ Progress refreshed');
+        log('Progress refreshed');
       }
 
       if (mounted) {
         Get.back(result: true);
       }
     } catch (e) {
-      log('❌ Error closing reader: $e');
+      log('Error closing reader: $e');
       if (mounted) {
         Get.back(result: false);
       }
     }
   }
 
-  // Core book initialization and loading
+  Future<void> _updatePageInfo({bool skipProgressSave = false}) async {
+    try {
+      final pageInfo = await _viewerController.getPageInfo();
+      final currentPage = (pageInfo['currentPage'] as num?)?.toInt() ?? 1;
+      final totalPages = (pageInfo['totalPages'] as num?)?.toInt() ?? 1;
+      final vppReady = pageInfo['vppReady'] == true;
+      final vppSampleCount = (pageInfo['vppSampleCount'] as num?)?.toInt() ?? 0;
+
+      _liveTotalPages = totalPages;
+
+      // Enhanced page info logging
+      log('╔═══════════════════════════════════════════════════════════╗');
+      log('║  📖 READER STATE UPDATE                                   ║');
+      log('╠═══════════════════════════════════════════════════════════╣');
+      log('║  📝 Font Size:        $_fontSize                           ║');
+      log('║  📄 Current Page:     $currentPage / $totalPages           ║');
+      log('║  🔒 VPP Status:       ${vppReady ? "LOCKED ✅" : "Calibrating... ($vppSampleCount samples)"}  ║');
+      log('║  📊 Display Pages:    $_viewerTotalPages                   ║');
+      log('║  🔄 Live Total:       $_liveTotalPages                     ║');
+      log('╚═══════════════════════════════════════════════════════════╝');
+
+      if (mounted) {
+        setState(() {
+          _viewerCurrentPage = currentPage;
+
+          // Only show page count and dismiss loading when VPP is locked
+          if (totalPages > 1 && vppReady) {
+            _viewerTotalPages = totalPages;
+
+            if (_isLoadingPages) {
+              _isLoadingPages = false;
+              _initialLoadingTimer?.cancel();
+              log('✅ VPP locked - final page count: $totalPages pages');
+            }
+          } else if (totalPages > 1 && !vppReady) {
+            log('⏳ VPP calibrating (samples=$vppSampleCount) - keeping loading spinner visible...');
+          }
+        });
+      }
+
+      // Mark reader ready to dismiss loading overlay early (allows navigation during VPP calibration)
+      if (totalPages > 1 && !_isReaderReady) {
+        _markReaderReadyIfPossible();
+      }
+
+      // Apply audio progress immediately (don't wait for VPP lock)
+      if (totalPages > 1 && !_hasAppliedAudioProgress) {
+        _applyAudioProgressIfNeeded();
+      }
+
+      // Save progress only after VPP is ready (fully calibrated)
+      if (totalPages > 1 && vppReady) {
+        _cacheTotalPages(totalPages);
+
+        if (!skipProgressSave) {
+          controller.onPageFlip(currentPage, totalPages);
+          _saveTextProgressToAudio(currentPage, totalPages);
+        } else {
+          log('⏸️ Skipping progress save during initialization (page: $currentPage/$totalPages)');
+        }
+      } else if (totalPages > 1) {
+        log('⏸️ Waiting VPP lock before cache/save (samples=$vppSampleCount, pending=$totalPages pages)');
+      }
+    } catch (e) {
+      log('Error getting page info: $e');
+    }
+  }
+
+  Future<void> _retryPageInfoUntilValid() async {
+    int retries = 0;
+    const maxRetries = 10;
+    const retryDelay = Duration(milliseconds: 300);
+
+    while (retries < maxRetries && mounted) {
+      await Future.delayed(retryDelay);
+      retries++;
+      log('🔄 Retry #$retries: Fetching page info...');
+
+      await _updatePageInfo(skipProgressSave: true);
+
+      if (_viewerTotalPages > 10) {
+        log('✅ Valid total pages found: $_viewerTotalPages');
+
+        if (_chapters.isNotEmpty) {
+          await _buildChapterPages();
+        }
+        break;
+      }
+    }
+
+    if (_viewerTotalPages <= 1 && retries >= maxRetries) {
+      log('⚠️ Page info retries exhausted (liveTotal=$_liveTotalPages)');
+    }
+  }
+
+  void _applyAudioProgressIfNeeded() {
+    log('📖 _applyAudioProgressIfNeeded START');
+    log('   hasAppliedAudioProgress: $_hasAppliedAudioProgress');
+    log('   viewerTotalPages: $_viewerTotalPages');
+    log('   liveTotalPages: $_liveTotalPages');
+    log('   uniqueBookId: $_uniqueBookId');
+
+    if (_hasAppliedAudioProgress) {
+      log('   ❌ Already applied audio progress, skipping');
+      return;
+    }
+
+    if (_liveTotalPages <= 1) {
+      log('⏳ Deferring audio progress apply (liveTotalPages=$_liveTotalPages)');
+      return;
+    }
+
+    _hasAppliedAudioProgress = true;
+
+    final audioProgress = _getAudioProgress();
+    log('   audioProgress from storage: $audioProgress');
+
+    if (audioProgress != null && audioProgress > 0.01) {
+      final targetPage = (audioProgress * _liveTotalPages).round();
+      log('✅ Audio progress found: ${(audioProgress * 100).toStringAsFixed(1)}%');
+      log('   Target page: $targetPage / $_liveTotalPages');
+      log('🚀 Applying audio progress to viewer...');
+      _viewerController.toProgressPercentage(audioProgress);
+      log('✅ Applied progress successfully');
+    } else {
+      log('❌ No audio progress to apply (progress: $audioProgress)');
+    }
+
+    _markReaderReadyIfPossible();
+  }
+
+  void _updateCurrentChapter() {
+    if (_chapters.isEmpty) {
+      setState(() {
+        _currentChapterTitle = widget.book?.name ?? '';
+      });
+      return;
+    }
+
+    String chapterTitle = ReaderHelpers.getChapterTitleByHref(
+      _currentHref,
+      _chapters,
+      widget.book?.name ?? '',
+    );
+    setState(() {
+      _currentChapterTitle = chapterTitle;
+    });
+    log('📖 Current chapter updated: $_currentChapterTitle (href: $_currentHref)');
+  }
+
   Future<void> _initializeBook() async {
+    if (_isInitializingBook) {
+      log('⏭️ _initializeBook already in progress, skipping duplicate call');
+      return;
+    }
+
+    _isInitializingBook = true;
     try {
       setState(() {
         _hasError = false;
         _errorMessage = null;
-        _downloadProgress = 0.05; // Start at 5% to show progress immediately
+        _downloadProgress = 0.05;
       });
 
-      // Initialize CosmosEpub with retry logic
-      bool initialized = false;
-      int retryCount = 0;
-      const maxRetries = 3;
-
-      while (!initialized && retryCount < maxRetries) {
-        try {
-          await CosmosEpub.initialize();
-          initialized = true;
-          log('✅ CosmosEpub initialized (attempt ${retryCount + 1})');
-          if (mounted) {
-            setState(() => _downloadProgress = 0.10); // 10% after initialization
-          }
-        } catch (e) {
-          retryCount++;
-          log('⚠️ CosmosEpub.initialize() error (attempt $retryCount/$maxRetries): $e');
-
-          if (retryCount < maxRetries) {
-            // Wait before retry with exponential backoff
-            await Future.delayed(Duration(milliseconds: 100 * retryCount));
-          } else {
-            // All retries failed
-            log('❌ Failed to initialize CosmosEpub after $maxRetries attempts');
-            throw Exception('Failed to initialize CosmosEpub: $e');
-          }
-        }
+      if (mounted) {
+        setState(() => _downloadProgress = 0.10);
       }
 
       if (widget.epubPath != null && widget.epubPath!.isNotEmpty) {
@@ -289,12 +548,13 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     } catch (e, st) {
       log('Initialize error: $e\n$st');
 
-      // Check if it's an authentication error
       if (_isAuthError(e)) {
         _showLoginBottomSheet();
       } else {
         log('Failed to open book: $e');
       }
+    } finally {
+      _isInitializingBook = false;
     }
   }
 
@@ -314,155 +574,60 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     }
   }
 
-  Future<Map<String, dynamic>> _fetchSignedUrl(String bookKey) async {
-    final endpoint = '/books/file';
-    final query = {'filename': bookKey};
-
-    log('Calling NetworkManager.get -> $endpoint ? filename=$bookKey');
-    try {
-      final resp = await _networkManager.get(
-        endpoint,
-        sendToken: true,
-        queryParameters: query,
-      );
-
-      log('NetworkManager.get response: ${jsonEncode(resp)}');
-
-      // Check for authentication error
-      if (_isAuthErrorResponse(resp)) {
-        log('Authentication required for signed URL');
-        throw Exception('Authentication required');
-      }
-
-      if (resp['success'] == true && resp['data'] != null) {
-        final data = resp['data'];
-        if (data is Map && data.containsKey('url') && data['url'] != null) {
-          final signedUrl = data['url'].toString();
-          final fileSize = data['size'] as int? ?? 0;
-          log('Signed URL obtained: $signedUrl');
-          log('File size from API: $fileSize bytes (${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB)');
-          return {'url': signedUrl, 'size': fileSize};
-        } else {
-          throw Exception('Signed URL missing in response data');
-        }
-      } else {
-        final statusCode = resp['statusCode'] ?? 'unknown';
-        final error = resp['error'] ?? resp['data'] ?? 'Unknown error';
-        throw Exception('Signed URL API error: $statusCode - $error');
-      }
-    } catch (e, st) {
-      log('Signed URL fetch error: $e\n$st');
-      rethrow;
-    }
-  }
-
   Future<void> _downloadAndOpenBook() async {
     try {
-      log('📚 ========== EPUB DOWNLOAD & OPEN PROCESS START ==========');
-      log('📚 Book ID: ${widget.bookId}');
-      log('📚 Translate ID: ${widget.translateId}');
-      log('📚 Unique Book ID: $_uniqueBookId');
-      log('📚 EPUB Path (key): ${widget.epubPath}');
+      log('========== EPUB DOWNLOAD & OPEN PROCESS START ==========');
+      log('Book ID: ${widget.bookId}');
+      log('Translate ID: ${widget.translateId}');
+      log('Unique Book ID: $_uniqueBookId');
+      log('EPUB Path (key): ${widget.epubPath}');
 
       setState(() {
-        _downloadProgress = 0.15; // 15% when checking local file
+        _downloadProgress = 0.15;
       });
 
-      final localPath = await _getLocalFilePath(widget.bookId);
+      final localPath = await ReaderHelpers.getLocalFilePath(widget.bookId, widget.epubPath);
       final file = File(localPath);
-      log('📚 Local file path: $localPath');
+      log('Local file path: $localPath');
 
       if (await file.exists()) {
         final fileSize = await file.length();
-        log('📚 ✅ Local copy found: $localPath');
-        log('📚 File size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
+        log('Local copy found: $localPath');
+        log('File size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
 
-        // Check if file is valid (not empty or corrupted)
         if (fileSize > 0) {
-          // 🎯 NEW: Parse book first in loading screen (0% to 90%)
-          setState(() => _downloadProgress = 0.0);
-
-          log('📖 Parsing locally cached book...');
-          final parseStart = DateTime.now();
-
-          _parsedEpubBook = await CosmosEpub.parseLocalBook(localPath: localPath);
-
-          final parseDuration = DateTime.now().difference(parseStart);
-          log('📖 ✅ Book parsed in ${parseDuration.inMilliseconds}ms');
-
           setState(() => _downloadProgress = 0.90);
 
-          // 🎯 NEW: Precalculate page counts (90% to 92%)
-
-          log('📊 Starting page count precalculation...');
-          final precalcStart = DateTime.now();
-
-          try {
-            await CosmosEpub.precalculatePageCounts(
-              epubBook: _parsedEpubBook!,
-              bookId: _uniqueBookId,
-              pageSize: MediaQuery.of(context).size,
-              onProgress: (current, total) {
-                if (mounted) {
-                  final progressPercent = 0.90 + (0.02 * (current / total));
-                  setState(() => _downloadProgress = progressPercent);
-                }
-              },
-            );
-
-            final precalcDuration = DateTime.now().difference(precalcStart);
-            log('📊 ✅ Page counts precalculated in ${precalcDuration.inMilliseconds}ms');
-          } catch (e) {
-            log('⚠️ Page precalculation error: $e (will calculate on first open)');
-          }
-
-          // Prepare to open (92% to 100%)
-
-          await _syncAudioProgressToTextBook();
-
-          // Animate to 100%
-          final prepSteps = 10;
-          for (int i = 0; i < prepSteps; i++) {
-            await Future.delayed(const Duration(milliseconds: 50));
-            if (mounted) {
-              setState(() {
-                _downloadProgress = (0.92 + (0.08 * (i + 1) / prepSteps)).clamp(0.92, 1.0);
-              });
-            }
-          }
-
-          setState(() => _downloadProgress = 1.0);
-          await Future.delayed(const Duration(milliseconds: 300));
-
-          await _openPreparedBook(localPath);
+          _showReader(localPath);
           return;
         } else {
-          log('📚 ⚠️ Local file is empty or corrupted, deleting and re-downloading');
+          log('Local file is empty or corrupted, deleting and re-downloading');
           await file.delete();
         }
       }
 
-      log('📚 ❌ No local copy found, need to download');
+      log('No local copy found, need to download');
+
+      final downloadService = BookDownloadService(
+        networkManager: _networkManager,
+        onProgressUpdate: (progress) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress = (progress * 0.90).clamp(0.0, 0.90);
+            });
+          }
+        },
+        onError: (error) {
+          _setError(error);
+        },
+      );
 
       final startFetchUrl = DateTime.now();
-      final urlData = await _fetchSignedUrl(widget.epubPath!);
+      final urlData = await downloadService.fetchSignedUrl(widget.epubPath!);
       final signedUrl = urlData['url'] as String;
       final expectedSize = urlData['size'] as int;
       final fetchUrlDuration = DateTime.now().difference(startFetchUrl);
-      log('📚 ✅ Signed URL obtained in ${fetchUrlDuration.inMilliseconds}ms');
-
-      // Parse and log URL components for debugging
-      try {
-        final uri = Uri.parse(signedUrl);
-        log('📚 URL Protocol: ${uri.scheme}');
-        log('📚 URL Host: ${uri.host}');
-        log('📚 URL Path: ${uri.path}');
-        if (uri.queryParameters.isNotEmpty) {
-          log('📚 URL Query Parameters: ${uri.queryParameters}');
-        }
-      } catch (e) {
-        log('📚 ⚠️ Could not parse URL: $e');
-      }
+      log('Signed URL obtained in ${fetchUrlDuration.inMilliseconds}ms');
 
       setState(() {
         _downloadProgress = 0.0;
@@ -470,18 +635,27 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
       final startDownload = DateTime.now();
 
-      // 🎯 Download and parse in parallel
-      await _downloadAndPrepareBook(signedUrl, localPath, expectedSize: expectedSize);
+      final actualEpubPath = await downloadService.downloadAndPrepareBook(
+        signedUrl,
+        localPath,
+        expectedSize: expectedSize,
+      );
 
       final downloadDuration = DateTime.now().difference(startDownload);
-      log('📚 ✅ Download and preparation completed in ${downloadDuration.inSeconds}s');
+      log('Download and preparation completed in ${downloadDuration.inSeconds}s');
 
-      // Book is already parsed and ready, just navigate
-      log('📚 ========== EPUB DOWNLOAD & OPEN PROCESS END ==========');
+      if (mounted) {
+        setState(() {
+          _downloadProgress = 0.90;
+        });
+      }
+
+      _showReader(actualEpubPath);
+
+      log('========== EPUB DOWNLOAD & OPEN PROCESS END ==========');
     } catch (e, st) {
       _logError('Download/Open Error: $e\n$st');
 
-      // Check if it's an authentication error
       if (_isAuthError(e)) {
         _showLoginBottomSheet();
       } else {
@@ -490,605 +664,41 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     }
   }
 
-  Future<String> _getLocalFilePath(String bookId) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final booksDir = Directory('${directory.path}/books');
+  void _showReader(String filePath) {
+    if (!mounted) return;
 
-    if (!await booksDir.exists()) {
-      await booksDir.create(recursive: true);
+    if (_epubSource != null && _openedFilePath == filePath) {
+      log('⏭️ Reader already opened with same file path, skipping re-open');
+      return;
     }
 
-    // Use epubPath (bookKey) as part of filename if available to support multiple translations
-    if (widget.epubPath != null && widget.epubPath!.isNotEmpty) {
-      // Create a safe filename from the path/key
-      // key format example: "/private/eng-1765969217345-1765969217345.epub"
-      final safeKey = widget.epubPath!.split('/').last;
-      log('📁 Using translation-specific cache path: ${booksDir.path}/$safeKey');
-      return '${booksDir.path}/$safeKey';
-    }
+    log('Opening reader for: $filePath');
 
-    log('📁 Using default cache path: ${booksDir.path}/book_$_uniqueBookId.epub');
-    return '${booksDir.path}/book_$_uniqueBookId.epub';
+    setState(() {
+      _openedFilePath = filePath;
+      _epubViewerKey = UniqueKey();
+      _epubSource = epub.EpubSource.fromFile(File(filePath));
+      _isReaderReady = false;
+      _downloadProgress = 0.90;
+    });
   }
 
-  /// Downloads book and prepares it in background while showing smooth progress
-  /// This ensures when download completes, book is ready to open immediately
-  Future<void> _downloadAndPrepareBook(String url, String savePath, {int expectedSize = 0}) async {
-    try {
-      log('⬇️ 🎯 Starting download with background preparation...');
-      log('⬇️ Save path: $savePath');
-      log('⬇️ Expected size from API: $expectedSize bytes (${(expectedSize / 1024 / 1024).toStringAsFixed(2)} MB)');
-
-      final client = HttpClient();
-      final req = await client.getUrl(Uri.parse(url));
-      final resp = await req.close();
-
-      log('⬇️ HTTP Response status: ${resp.statusCode}');
-      log('⬇️ Content-Length: ${resp.contentLength} bytes (${(resp.contentLength / 1024 / 1024).toStringAsFixed(2)} MB)');
-
-      if (resp.statusCode != 200) {
-        final body = await resp.transform(utf8.decoder).join();
-        _logError('Download failed. Body: $body');
-        throw Exception('Failed to download file, status: ${resp.statusCode}');
-      }
-
-      final file = File(savePath);
-      final sink = file.openWrite();
-
-      final startTime = DateTime.now();
-      final totalBytes = resp.contentLength > 0 ? resp.contentLength : expectedSize;
-      int receivedBytes = 0;
-
-      // Minimum display time for smooth UX (show progress for at least this duration)
-      const minDisplayDuration = Duration(seconds: 3);
-
-      // Track real download progress
-      await for (final chunk in resp) {
-        sink.add(chunk);
-        receivedBytes += chunk.length;
-
-        if (totalBytes > 0) {
-          // Calculate real download progress (0.0 to 0.90)
-          // We reserve last 10% for book parsing and preparation
-          final realProgress = (receivedBytes / totalBytes) * 0.90;
-
-          if (mounted) {
-            setState(() {
-              _downloadProgress = realProgress.clamp(0.0, 0.90);
-            });
-          }
-        }
-      }
-
-      await sink.close();
-      final downloadDuration = DateTime.now().difference(startTime);
-      final finalSize = await file.length();
-      final avgSpeed = downloadDuration.inSeconds > 0 ? finalSize / downloadDuration.inSeconds : finalSize;
-
-      log('⬇️ ✅ Download completed!');
-      log('⬇️ Final size: ${(finalSize / 1024 / 1024).toStringAsFixed(2)} MB');
-      log('⬇️ Download duration: ${downloadDuration.inSeconds}s');
-      log('⬇️ Average speed: ${(avgSpeed / 1024 / 1024).toStringAsFixed(2)} MB/s');
-
-      // Ensure minimum display time for smooth UX
-      final elapsedTime = DateTime.now().difference(startTime);
-      if (elapsedTime < minDisplayDuration) {
-        final remainingTime = minDisplayDuration - elapsedTime;
-        log('⏳ Extending download display for smooth UX: ${remainingTime.inMilliseconds}ms...');
-
-        // Smoothly animate progress from current to 90% during remaining time
-        final steps = (remainingTime.inMilliseconds / 50).ceil();
-        final currentProgress = _downloadProgress;
-        final targetProgress = 0.90;
-        final progressStep = (targetProgress - currentProgress) / steps;
-
-        for (int i = 0; i < steps; i++) {
-          await Future.delayed(const Duration(milliseconds: 50));
-          if (mounted) {
-            setState(() {
-              _downloadProgress = (currentProgress + (progressStep * (i + 1))).clamp(0.0, 0.90);
-            });
-          }
-        }
-      }
-
-      // 🎯 NEW: Parse book while showing progress (90% to 95%)
-      if (mounted) {
-        setState(() {
-// New translation key
-          _downloadProgress = 0.90;
-        });
-      }
-
-      log('📖 Starting book parsing (loading pages and content)...');
-      final parseStart = DateTime.now();
-
-      // 🔍 Check if downloaded file is a .zip containing an .epub
-      String actualEpubPath = savePath;
-
-      if (savePath.toLowerCase().endsWith('.zip')) {
-        log('📦 Detected .zip file, checking if it contains .epub...');
-
-        try {
-          final zipFile = File(savePath);
-          final bytes = await zipFile.readAsBytes();
-          final archive = ZipDecoder().decodeBytes(bytes);
-
-          // Look for .epub file inside the zip
-          ArchiveFile? epubFile;
-          for (var file in archive.files) {
-            if (!file.isFile) {
-              continue; // Skip directories
-            }
-            if (file.name.toLowerCase().endsWith('.epub')) {
-              epubFile = file;
-              log('✅ Found .epub inside zip: ${file.name}');
-              break;
-            }
-          }
-
-          if (epubFile != null && epubFile.content != null) {
-            // Extract the .epub file
-            final extractedEpubPath = savePath.replaceAll('.zip', '.epub');
-            final extractedFile = File(extractedEpubPath);
-            await extractedFile.writeAsBytes(epubFile.content as List<int>);
-
-            log('✅ Extracted .epub to: $extractedEpubPath');
-
-            // Delete the original .zip file
-            try {
-              await zipFile.delete();
-              log('🗑️ Deleted original .zip file');
-            } catch (e) {
-              log('⚠️ Could not delete .zip file: $e');
-            }
-
-            actualEpubPath = extractedEpubPath;
-          } else {
-            log('⚠️ No .epub file found inside .zip, will try to parse as is');
-          }
-        } catch (e) {
-          log('⚠️ Error extracting .zip file: $e, will try to parse as is');
-        }
-      }
-
-      // Parse the book in the loading screen
-      _parsedEpubBook = await CosmosEpub.parseLocalBook(localPath: actualEpubPath);
-
-      final parseDuration = DateTime.now().difference(parseStart);
-      log('📖 ✅ Book parsed in ${parseDuration.inMilliseconds}ms');
-
-      // 🎯 NEW: Precalculate page counts (95% to 97%)
-      if (mounted) {
-        setState(() {
-// New translation key
-          _downloadProgress = 0.92;
-        });
-      }
-
-      log('📊 Starting page count precalculation...');
-      final precalcStart = DateTime.now();
-
-      try {
-        await CosmosEpub.precalculatePageCounts(
-          epubBook: _parsedEpubBook!,
-          bookId: _uniqueBookId,
-          pageSize: MediaQuery.of(context).size,
-          onProgress: (current, total) {
-            if (mounted) {
-              final progressPercent = 0.92 + (0.03 * (current / total));
-              setState(() => _downloadProgress = progressPercent);
-            }
-          },
-        );
-
-        final precalcDuration = DateTime.now().difference(precalcStart);
-        log('📊 ✅ Page counts precalculated in ${precalcDuration.inMilliseconds}ms');
-      } catch (e) {
-        log('⚠️ Page precalculation error: $e (will calculate on first open)');
-      }
-
-      // Animate progress from 90% to 95%
-      if (mounted) {
-        setState(() {
-          _downloadProgress = 0.95;
-        });
-      }
-
-      // 🎯 NEW: Prepare book for opening (95% to 100%)
-      if (mounted) {
-        setState(() {
-// New translation key
-          _downloadProgress = 0.95;
-        });
-      }
-
-      log('🎯 Preparing book to open...');
-
-      // Sync audio progress before opening
-      await _syncAudioProgressToTextBook();
-
-      // Animate to 100%
-      final prepSteps = 10;
-      for (int i = 0; i < prepSteps; i++) {
-        await Future.delayed(const Duration(milliseconds: 50));
-        if (mounted) {
-          setState(() {
-            _downloadProgress = (0.95 + (0.05 * (i + 1) / prepSteps)).clamp(0.95, 1.0);
-          });
-        }
-      }
-
-      // Set to 100%
-      if (mounted) {
-        setState(() {
-          _downloadProgress = 1.0;
-        });
-      }
-
-      log('📖 ✅ Book ready to open!');
-
-      final totalDuration = DateTime.now().difference(startTime);
-      log('⬇️ 🎯 Total process completed in ${totalDuration.inSeconds}s (book parsed and ready)');
-
-      // Small delay to show 100% completion
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // Now open the book instantly (no more loading!)
-      await _openPreparedBook(savePath);
-    } catch (e, st) {
-      _logError('Download/Prepare error: $e\n$st');
-
-      try {
-        final file = File(savePath);
-        if (await file.exists()) await file.delete();
-      } catch (_) {}
-
-      rethrow;
-    }
-  }
-
-  /// Opens a pre-parsed book instantly - no more loading!
-  Future<void> _openPreparedBook(String filePath) async {
-    try {
-      log('🚀 Opening pre-prepared book instantly...');
-
-      if (_parsedEpubBook == null) {
-        log('⚠️ No parsed book found, falling back to normal opening');
-        await _openDownloadedBook(filePath);
-        return;
-      }
-
-      if (mounted) {
-        setState(() {
-          _downloadProgress = 0.95; // 95% when opening
-        });
-      }
-
-      final startOpen = DateTime.now();
-
-      try {
-        // Ensure CosmosEpub is initialized before opening with retry logic
-        bool initialized = false;
-        int retryCount = 0;
-        const maxRetries = 3;
-
-        while (!initialized && retryCount < maxRetries) {
-          try {
-            await CosmosEpub.initialize();
-            initialized = true;
-            log('✅ CosmosEpub initialized for prepared book (attempt ${retryCount + 1})');
-          } catch (e) {
-            retryCount++;
-            log('⚠️ CosmosEpub.initialize() error (attempt $retryCount/$maxRetries): $e');
-
-            if (retryCount < maxRetries) {
-              // Wait before retry with exponential backoff
-              await Future.delayed(Duration(milliseconds: 100 * retryCount));
-            } else {
-              // All retries failed, throw error
-              log('❌ Failed to initialize CosmosEpub after $maxRetries attempts');
-              throw Exception('Failed to initialize CosmosEpub: $e');
-            }
-          }
-        }
-
-        await CosmosEpub.openParsedBook(
-          epubBook: _parsedEpubBook!,
-          context: context,
-          bookDescription: widget.bookDescription,
-          imageUrl: widget.imageUrl,
-          isInShelf: widget.isAddedToWantToRead ?? false,
-          isInMyBooks: widget.isMarkedAsFinished ?? false,
-          bookId: _uniqueBookId,
-          onPageFlip: (currentPage, totalPages) {
-            log('📄 Page flip: $currentPage / $totalPages');
-
-            // Cache total pages for future syncs (first time or if changed)
-            _cacheTotalPages(totalPages);
-
-            // On first page flip, check if we should apply audio progress
-            if (!_hasAppliedAudioProgress && totalPages > 0) {
-              _hasAppliedAudioProgress = true;
-              final audioProgress = _getAudioProgress();
-
-              if (audioProgress != null && audioProgress > 0.01) {
-                final targetPage = (audioProgress * totalPages).round();
-                final currentProgress = currentPage / totalPages;
-                final progressDiff = (audioProgress - currentProgress).abs();
-
-                log('📊 First page flip - checking audio progress:');
-                log('   Audio progress: ${(audioProgress * 100).toStringAsFixed(1)}%');
-                log('   Current page: $currentPage / $totalPages (${(currentProgress * 100).toStringAsFixed(1)}%)');
-                log('   Target page: $targetPage');
-                log('   Progress diff: ${(progressDiff * 100).toStringAsFixed(1)}%');
-
-                // Jump to target page if different (handles both forward and backward)
-                if (targetPage != currentPage) {
-                  if (targetPage > currentPage) {
-                    log('🎯 Jumping forward to page $targetPage');
-                  } else {
-                    log('🔙 Current page is ahead - jumping back to page $targetPage');
-                  }
-
-                  CosmosEpub.setCurrentPageIndex(_uniqueBookId, targetPage);
-                  log('✅ Jump command sent to page $targetPage');
-                  return; // Don't save incorrect page
-                } else {
-                  log('✅ Already at correct page');
-                }
-              } else {
-                log('📖 No audio progress to apply (progress: $audioProgress)');
-              }
-            }
-
-            controller.onPageFlip(currentPage, totalPages);
-
-            // Save text book progress to audio progress as well for bidirectional sync
-            _saveTextProgressToAudio(currentPage, totalPages);
-          },
-          onLastPage: (lastPageIndex) {
-            controller.onLastPage(lastPageIndex);
-          },
-        );
-
-        final openDuration = DateTime.now().difference(startOpen);
-        log('🚀 ✅ Pre-prepared book opened instantly in ${openDuration.inMilliseconds}ms');
-
-        await _handleClose();
-      } on Exception catch (e, st) {
-        final errorString = e.toString();
-        _logError('Failed to open prepared EPUB: $errorString\n$st');
-
-        // Check if it's a parsing error
-        if (errorString.contains('TOC file') || errorString.contains('EPUB parsing error') || errorString.contains('does not contain head element')) {
-          log('⚠️ EPUB format issue detected - showing user-friendly error');
-
-          // Close loading dialog if open
-          if (mounted && Navigator.canPop(context)) {
-            Navigator.pop(context);
-          }
-
-          // Show user-friendly error dialog
-          if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                title: Text('book_format_error'.tr.isEmpty ? 'Format Hatası' : 'book_format_error'.tr),
-                content: Text('epub_format_not_supported'.tr.isEmpty ? 'Bu kitabın formatı desteklenmiyor. Lütfen farklı bir format deneyin.' : 'epub_format_not_supported'.tr),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Close dialog
-                      Navigator.pop(context); // Go back to previous screen
-                    },
-                    child: Text('ok'.tr.isEmpty ? 'Tamam' : 'ok'.tr),
-                  ),
-                ],
-              ),
-            );
-          }
-        } else {
-          // Generic error
-          _handleGenericOpenError();
-        }
-      }
-    } catch (e, st) {
-      _logError('Failed to open prepared EPUB: $e\n$st');
-      _handleGenericOpenError();
-    }
-  }
-
-  void _handleGenericOpenError() {
-    // Close loading dialog if open
-    if (mounted && Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-
-    // Show generic error
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: Text('error'.tr.isEmpty ? 'Hata' : 'error'.tr),
-          content: Text('failed_to_open_book'.tr.isEmpty ? 'Kitap açılamadı. Lütfen tekrar deneyin.' : 'failed_to_open_book'.tr),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Go back to previous screen
-              },
-              child: Text('ok'.tr.isEmpty ? 'Tamam' : 'ok'.tr),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  /// Opens a downloaded book from local file path
-  Future<void> _openDownloadedBook(String filePath) async {
-    try {
-      if (mounted) {
-        setState(() {
-          _downloadProgress = 0.95; // 95% when opening
-        });
-      }
-
-      // Log file size for debugging
-      final file = File(filePath);
-      if (await file.exists()) {
-        final fileSize = await file.length();
-        log('📖 File size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
-      }
-
-      // Sync audio progress to text book before opening
-      await _syncAudioProgressToTextBook();
-
-      final startOpen = DateTime.now();
-
-      try {
-        await CosmosEpub.openLocalBook(
-          localPath: filePath,
-          context: context,
-          bookDescription: widget.bookDescription,
-          imageUrl: widget.imageUrl,
-          isInShelf: widget.isAddedToWantToRead ?? false,
-          isInMyBooks: widget.isMarkedAsFinished ?? false,
-          bookId: _uniqueBookId,
-          onPageFlip: (currentPage, totalPages) {
-            log('📄 Page flip: $currentPage / $totalPages');
-
-            // Cache total pages for future syncs (first time or if changed)
-            _cacheTotalPages(totalPages);
-
-            // On first page flip, check if we should apply audio progress
-            if (!_hasAppliedAudioProgress && totalPages > 0) {
-              _hasAppliedAudioProgress = true;
-              final audioProgress = _getAudioProgress();
-
-              if (audioProgress != null && audioProgress > 0.01) {
-                final targetPage = (audioProgress * totalPages).round();
-                final currentProgress = currentPage / totalPages;
-                final progressDiff = (audioProgress - currentProgress).abs();
-
-                log('📊 First page flip - checking audio progress:');
-                log('   Audio progress: ${(audioProgress * 100).toStringAsFixed(1)}%');
-                log('   Current page: $currentPage / $totalPages (${(currentProgress * 100).toStringAsFixed(1)}%)');
-                log('   Target page: $targetPage');
-                log('   Progress diff: ${(progressDiff * 100).toStringAsFixed(1)}%');
-
-                // Jump to target page if different (handles both forward and backward)
-                if (targetPage != currentPage) {
-                  if (targetPage > currentPage) {
-                    log('🎯 Jumping forward to page $targetPage');
-                  } else {
-                    log('🔙 Current page is ahead - jumping back to page $targetPage');
-                  }
-
-                  CosmosEpub.setCurrentPageIndex(_uniqueBookId, targetPage);
-                  log('✅ Jump command sent to page $targetPage');
-                  return; // Don't save incorrect page
-                } else {
-                  log('✅ Already at correct page');
-                }
-              } else {
-                log('📖 No audio progress to apply (progress: $audioProgress)');
-              }
-            }
-
-            controller.onPageFlip(currentPage, totalPages);
-
-            // Save text book progress to audio progress as well for bidirectional sync
-            _saveTextProgressToAudio(currentPage, totalPages);
-          },
-          onLastPage: (lastPageIndex) {
-            controller.onLastPage(lastPageIndex);
-          },
-        );
-
-        final openDuration = DateTime.now().difference(startOpen);
-        log('📖 ✅ Book opened successfully in ${openDuration.inMilliseconds}ms');
-
-        await _handleClose();
-      } on Exception catch (e, st) {
-        final errorString = e.toString();
-        _logError('Failed to open EPUB: $errorString\n$st');
-
-        // Check if it's a parsing error
-        if (errorString.contains('TOC file') || errorString.contains('EPUB parsing error') || errorString.contains('does not contain head element')) {
-          log('⚠️ EPUB format issue detected - showing user-friendly error');
-
-          // Close loading dialog if open
-          if (mounted && Navigator.canPop(context)) {
-            Navigator.pop(context);
-          }
-
-          // Show user-friendly error dialog
-          if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                title: Text('epub_format_error'.tr.isEmpty ? 'Format Hatası' : 'epub_format_error'.tr),
-                content: Text('epub_corrupted_message'.tr.isEmpty
-                    ? 'Bu EPUB dosyasının formatında bir sorun var. Dosya bozuk olabilir veya desteklenmeyen bir formatta olabilir.\n\nLütfen farklı bir kitap deneyin veya bu kitabı yeniden indirin.'
-                    : 'epub_corrupted_message'.tr),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context); // Close dialog
-                      Navigator.pop(context); // Go back to previous screen
-                    },
-                    child: Text('ok'.tr.isEmpty ? 'Tamam' : 'ok'.tr),
-                  ),
-                ],
-              ),
-            );
-          }
-          return;
-        }
-
-        // For other errors, rethrow
-        throw Exception('Failed to open book: $e');
-      }
-    } catch (e, st) {
-      _logError('Failed to open downloaded EPUB: $e\n$st');
-
-      // Close loading dialog if open
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-
-      // Show generic error
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: Text('error'.tr.isEmpty ? 'Hata' : 'error'.tr),
-            content: Text('failed_to_open_book'.tr.isEmpty ? 'Kitap açılamadı. Lütfen tekrar deneyin.' : 'failed_to_open_book'.tr),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(context); // Go back to previous screen
-                },
-                child: Text('ok'.tr.isEmpty ? 'Tamam' : 'ok'.tr),
-              ),
-            ],
-          ),
-        );
-      }
-    }
+  void _markReaderReadyIfPossible() {
+    if (!mounted || _isReaderReady) return;
+    // Allow dismissing overlay even with _viewerTotalPages=1 (it shows loading spinner until VPP ready)
+    // We check _liveTotalPages instead to know if book has loaded
+    if (_liveTotalPages <= 1) return;
+
+    setState(() {
+      _isReaderReady = true;
+      _downloadProgress = 1.0;
+    });
+    log('✅ Reader ready - loading overlay dismissed (displayPages=$_viewerTotalPages, livePages=$_liveTotalPages)');
   }
 
   Future<void> _openAssetBook() async {
     try {
       _logInfo('Opening fallback asset epub');
-
       if (mounted) Get.back();
     } catch (e, st) {
       _logError('Failed to open asset book: $e\n$st');
@@ -1114,104 +724,692 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        await _handleClose();
-        return false; // _handleClose already calls Get.back()
+  void _showReaderMenu() {
+    ReaderActionsSheet.show(
+      context,
+      onBookDescription: null,
+      onSaveToLibrary: () {
+        handleSaveToLibrary();
       },
-      child: Scaffold(
-        body: SafeArea(
-          child: SizedBox.expand(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.network(widget.imageUrl, width: 220, height: 330, fit: BoxFit.cover),
-                          const SizedBox(height: 80),
-                          Image.asset('assets/images/l1.png', width: 60, height: 30, fit: BoxFit.cover),
-                          const SizedBox(height: 20),
-                          Text(
-                            'loading_t'.tr,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontFamily: StringConstants.SFPro,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: LinearProgressIndicator(
-                            value: _downloadProgress,
-                            backgroundColor: Colors.grey[800],
-                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.mainColor),
-                            minHeight: 6,
-                          ),
-                        ),
-                        Container(
-                          width: 60,
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            '${(_downloadProgress * 100).toStringAsFixed(0)}%',
-                            textAlign: TextAlign.end,
-                            style: const TextStyle(
-                              color: AppColors.mainColor,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_hasError)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 24.0),
-                      child: Column(
-                        children: [
-                          Text(
-                            _errorMessage ?? 'Unknown error',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _hasError = false;
-                                _errorMessage = null;
-                                _downloadProgress = 0.0;
-                              });
-                              _initializeBook();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                            ),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+      onMarkAsFinished: () {
+        handleMarkAsFinished();
+      },
+      isAddedToShelf: detailController.isAddedToWantToRead.value,
+      isMarkedAsFinished: detailController.isMarkedAsFinished.value,
+    );
+  }
+
+  void _showChapterDrawer() {
+    ChapterDrawer.show(
+      context,
+      _viewerController,
+      bookTitle: widget.book?.name,
+      bookCoverUrl: widget.imageUrl,
+      currentPage: _viewerCurrentPage,
+      totalPages: _viewerTotalPages,
+      currentCfi: _currentCfi,
+      currentHref: _currentHref,
+      isLoadingPages: _isLoadingPages,
+      theme: _currentTheme,
+    );
+  }
+
+  void _showThemeSettings() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ThemeSettingsSheet(
+        currentTheme: _currentTheme,
+        currentFontSize: _fontSize,
+        onThemeChanged: _onThemeChanged,
+        onFontSizeChanged: _onFontSizeChanged,
+      ),
+    );
+  }
+
+  void _onThemeChanged(ReaderThemeModel theme) {
+    setState(() {
+      _currentTheme = theme;
+      _userHasManuallySelectedTheme = true; // Mark that user has manually selected a theme
+    });
+    _viewerController.updateTheme(theme: theme.epubTheme);
+  }
+
+  void _onFontSizeChanged(int size) {
+    log('╔═══════════════════════════════════════════════════════════╗');
+    log('║  🔤 FONT SIZE CHANGED                                     ║');
+    log('╠═══════════════════════════════════════════════════════════╣');
+    log('║  Old Size:  $_fontSize                                     ║');
+    log('║  New Size:  $size                                          ║');
+    log('║  Status:    Resetting VPP & regenerating locations...     ║');
+    log('╚═══════════════════════════════════════════════════════════╝');
+
+    setState(() {
+      _fontSize = size;
+      _isRegeneratingLocations = true;
+      _isLoadingPages = true;
+      // Reset total pages to show loading spinner until VPP recalibrates
+      _viewerTotalPages = 1;
+      _liveTotalPages = 1;
+    });
+    _viewerController.setFontSize(fontSize: size.toDouble());
+  }
+
+  void _handleShare(String text) async {
+    try {
+      await SharePlus.instance.share(
+        ShareParams(text: text),
+      );
+    } catch (e) {
+      log('Error sharing text: $e');
+    }
+  }
+
+  void _handleCopy(String text) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+    } catch (e) {
+      log('Error copying text: $e');
+    }
+  }
+
+  Future<void> _jumpToPage(int page) async {
+    if (_viewerTotalPages <= 1) return;
+
+    final targetPage = page.clamp(1, _viewerTotalPages);
+
+    final progressPercent = (_viewerTotalPages > 1) ? (targetPage - 1) / (_viewerTotalPages - 1) : 0.0;
+
+    log('📌 Jumping to page $targetPage (progress: $progressPercent)');
+
+    setState(() {
+      _viewerCurrentPage = targetPage;
+    });
+
+    try {
+      await _viewerController.toProgressPercentage(progressPercent);
+    } catch (e) {
+      log('❌ Error jumping to page $targetPage: $e');
+    }
+  }
+
+  /// Clear selection state in both Flutter and JavaScript
+  void _clearSelectionFully() {
+    _viewerController.clearSelection();
+    if (mounted) {
+      setState(() {
+        _selectedText = '';
+        _selectedCfi = null;
+        _selectionRect = null;
+      });
+    }
+    log('🧹 Selection fully cleared (Flutter + JS)');
+  }
+
+  Future<void> _showAddNoteSheet(String selectedText) async {
+    log('📍 Opening note sheet with CFI: $_selectedCfi');
+
+    final cfiToUse = _selectedCfi;
+    final savedCfi = _currentCfi;
+    final savedPage = _viewerCurrentPage;
+    final savedTotalPages = _viewerTotalPages;
+    log('📍 Saved position before note sheet: CFI=$savedCfi, page=$savedPage/$savedTotalPages');
+
+    // Clear selection before opening sheet to unblock navigation
+    _clearSelectionFully();
+
+    await AddNoteSheet.show(
+      context,
+      selectedText: selectedText,
+      onSave: (note, color) async {
+        log('📍 Saving note with CFI: $cfiToUse');
+        await handleNoteSelection(selectedText, userNote: note);
+      },
+    );
+
+    if (mounted) {
+      setState(() {
+        _selectedText = '';
+        _selectedCfi = null;
+        _selectionRect = null;
+      });
+
+      await Future.delayed(const Duration(milliseconds: 400));
+
+      if (savedCfi != null && savedCfi.isNotEmpty) {
+        log('🔄 Restoring reader position to CFI: $savedCfi');
+        _viewerController.display(cfi: savedCfi);
+      } else if (savedTotalPages > 1 && savedPage > 0) {
+        final progress = (savedPage - 1) / (savedTotalPages - 1);
+        log('🔄 Restoring reader position to progress: ${(progress * 100).toStringAsFixed(1)}%');
+        _viewerController.toProgressPercentage(progress);
+      }
+
+      log('✅ Bottom sheet closed, selection cleared, position restored');
+    }
+  }
+
+  /// Build custom selection toolbar (replaces native context menu)
+  Widget _buildSelectionToolbar() {
+    final rect = _selectionRect!;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final topPadding = MediaQuery.of(context).viewPadding.top + 15;
+
+    // Position toolbar above the selection, centered on it
+    const toolbarHeight = 44.0;
+    const toolbarPadding = 12.0;
+
+    // Calculate the actual Y position of the selection in the Stack
+    // The EpubViewer has top padding = viewPadding.top
+    final selectionTopInStack = rect.top + topPadding;
+    final selectionBottomInStack = rect.bottom + topPadding;
+
+    // Try to place above selection; if not enough space, place below
+    double toolbarTop;
+    if (selectionTopInStack - toolbarHeight - toolbarPadding > topPadding) {
+      toolbarTop = selectionTopInStack - toolbarHeight - toolbarPadding;
+    } else {
+      toolbarTop = selectionBottomInStack + toolbarPadding;
+    }
+
+    // Center horizontally on the selection, but clamp to screen
+    final selectionCenterX = rect.left + rect.width / 2;
+    const estimatedToolbarWidth = 220.0;
+    double toolbarLeft = (selectionCenterX - estimatedToolbarWidth / 2).clamp(8.0, screenWidth - estimatedToolbarWidth - 8.0);
+
+    return Positioned(
+      top: toolbarTop,
+      left: toolbarLeft,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: _currentTheme.isDark ? const Color(0xFF2C2C2E) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-            ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _toolbarButton(
+                label: 'add_note'.tr,
+                onTap: () {
+                  final text = _selectedText;
+                  if (text.isNotEmpty) {
+                    _showAddNoteSheet(text);
+                  }
+                },
+              ),
+              _toolbarDivider(),
+              _toolbarButton(
+                label: 'share_text'.tr,
+                onTap: () {
+                  final text = _selectedText;
+                  _clearSelectionFully();
+                  if (text.isNotEmpty) {
+                    _handleShare(text);
+                  }
+                },
+              ),
+              _toolbarDivider(),
+              _toolbarButton(
+                label: 'copy_text'.tr,
+                onTap: () {
+                  final text = _selectedText;
+                  _clearSelectionFully();
+                  if (text.isNotEmpty) {
+                    _handleCopy(text);
+                    Get.snackbar(
+                      '',
+                      '',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.green.withOpacity(0.9),
+                      colorText: Colors.white,
+                      duration: const Duration(seconds: 2),
+                      margin: const EdgeInsets.all(16),
+                      borderRadius: 8,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      titleText: const SizedBox.shrink(),
+                      messageText: Text(
+                        'copied_to_clipboard'.tr,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      isDismissible: true,
+                      dismissDirection: DismissDirection.horizontal,
+                    );
+                  }
+                },
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _toolbarButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final color = _currentTheme.isDark ? Colors.white : Colors.black87;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+        ),
+      ),
+    );
+  }
+
+  Widget _toolbarDivider() {
+    return Container(
+      width: 0.5,
+      height: 30,
+      color: _currentTheme.isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+    );
+  }
+
+  Widget _buildReaderView() {
+    return WillPopScope(
+      onWillPop: () async {
+        await _handleClose();
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: _currentTheme.backgroundColor,
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            RepaintBoundary(
+              child: Container(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).viewPadding.top + 40,
+                  bottom: MediaQuery.of(context).viewPadding.bottom + 30,
+                ),
+                color: _currentTheme.backgroundColor,
+                child: epub.EpubViewer(
+                  key: _epubViewerKey,
+                  epubController: _viewerController,
+                  epubSource: _epubSource!,
+                  displaySettings: epub.EpubDisplaySettings(
+                    flow: epub.EpubFlow.paginated,
+                    snap: true,
+                    theme: _currentTheme.epubTheme,
+                    fontSize: _fontSize,
+                  ),
+                  suppressNativeContextMenu: true,
+                  cachedLocations: _cachedLocations,
+                  onLocationsCached: (locationsJson) async {
+                    log('💾 Received locations from epub.js (${locationsJson.length} chars) — caching for next open');
+                    cacheLocationsData(locationsJson, fontSize: _fontSize);
+                    _cachedLocations = locationsJson;
+
+                    // Rebuild chapter page mapping when locations change
+                    // (e.g., after font size change triggers re-generation)
+                    if (_chapters.isNotEmpty) {
+                      await _buildChapterPages();
+                    }
+
+                    // Update page info with new locations (especially after font size change)
+                    await _updatePageInfo(skipProgressSave: false);
+
+                    // Hide loading overlay after locations regeneration completes
+                    if (mounted && _isRegeneratingLocations) {
+                      setState(() {
+                        _isRegeneratingLocations = false;
+                      });
+                    }
+                  },
+                  onEpubLoaded: () {
+                    log('EPUB loaded successfully');
+                  },
+                  onChaptersLoaded: (chapters) {
+                    log('Chapters loaded: ${chapters.length}');
+                    if (mounted) {
+                      setState(() {
+                        _chapters = chapters;
+                      });
+                    }
+                    _updateCurrentChapter();
+                  },
+                  onRelocated: (location) {
+                    log('📍 Relocated: progress=${(location.progress * 100).toStringAsFixed(1)}% | Page: $_viewerCurrentPage/$_viewerTotalPages | FontSize: $_fontSize');
+
+                    setState(() {
+                      _currentCfi = location.startCfi;
+                      _currentHref = location.href;
+                    });
+
+                    if (_isRestoringProgress && _pendingRestoreProgress != null) {
+                      final currentProgress = location.progress;
+                      final targetProgress = _pendingRestoreProgress!;
+                      if (currentProgress >= (targetProgress - 0.01) && currentProgress > 0.0) {
+                        _isRestoringProgress = false;
+                        _pendingRestoreProgress = null;
+                        _restoreRetryTimer?.cancel();
+                        log('✅ Restore complete (progress: $currentProgress)');
+                        _markReaderReadyIfPossible();
+                      } else {
+                        _restoreRelocateLogCount++;
+                        if (_restoreRelocateLogCount % 10 == 1) {
+                          log('⏳ Restoring progress (current: $currentProgress, target: $targetProgress)');
+                        }
+                        _restoreRetryTimer?.cancel();
+                        _restoreRetryTimer = Timer(const Duration(milliseconds: 350), () {
+                          if (_isRestoringProgress && _pendingRestoreProgress != null) {
+                            _restoreRetryCount++;
+                            if (_restoreRetryCount % 5 == 1) {
+                              log('🔁 Retry restore to ${_pendingRestoreProgress!}');
+                            }
+                            _viewerController.toProgressPercentage(_pendingRestoreProgress!);
+                          }
+                        });
+                      }
+                    }
+
+                    _updatePageInfo(skipProgressSave: !_hasAppliedAudioProgress || _isRestoringProgress);
+
+                    log('   totalPages after update: $_viewerTotalPages');
+                    _updateCurrentChapter();
+                  },
+                  onLocationLoaded: () {
+                    log('📍 Location loaded (page counts available)');
+                    log('   Current state: totalPages=$_viewerTotalPages, currentPage=$_viewerCurrentPage');
+                    log('   hasAppliedAudioProgress: $_hasAppliedAudioProgress');
+
+                    _updatePageInfo(skipProgressSave: true);
+                    log('   After _updatePageInfo: totalPages=$_viewerTotalPages, currentPage=$_viewerCurrentPage');
+
+                    _updateCurrentChapter();
+
+                    log('   Starting _retryPageInfoUntilValid...');
+                    _retryPageInfoUntilValid();
+                  },
+                  onTextSelected: (selection) {
+                    _selectedText = selection.selectedText;
+                    _selectedCfi = selection.selectionCfi;
+                    log('📍 Text selected: ${selection.selectedText}');
+                    log('📍 Selection CFI: ${selection.selectionCfi}');
+                  },
+                  onSelection: (selectedText, cfiRange, selectionRect, viewRect) {
+                    setState(() {
+                      _selectedText = selectedText;
+                      _selectedCfi = cfiRange;
+                      _selectionRect = selectionRect;
+                    });
+                    log('📍 onSelection CFI: $cfiRange, rect: $selectionRect');
+                  },
+                  onDeselection: () {
+                    setState(() {
+                      _selectedText = '';
+                      _selectedCfi = null;
+                      _selectionRect = null;
+                    });
+                  },
+                  onTouchDown: (x, y) {
+                    _touchDownX = x;
+                    _touchDownY = y;
+                    _touchDownAt = DateTime.now();
+                    log('👆 TOUCH DOWN (x: $x, y: $y) showControls=$_showControls');
+                  },
+                  onTouchUp: (x, y) {
+                    final dt = _touchDownAt != null ? DateTime.now().difference(_touchDownAt!).inMilliseconds : -1;
+                    final dx = (x - _touchDownX).abs();
+                    final dy = (y - _touchDownY).abs();
+                    final isTapLike = dx < 0.05 && dy < 0.05 && dt >= 0 && dt < 500;
+
+                    log('👆 TOUCH UP (x: $x, y: $y) longPressed=$_isProgressLongPressed showControls(before)=$_showControls dx=${dx.toStringAsFixed(3)} dy=${dy.toStringAsFixed(3)} dt=${dt}ms isTapLike=$isTapLike');
+
+                    if (!_isProgressLongPressed && isTapLike) {
+                      if (_selectedText.isNotEmpty) {
+                        _clearSelectionFully();
+                        return;
+                      }
+
+                      setState(() {
+                        _showControls = !_showControls;
+                        log('🎛️ showControls toggled -> now: $_showControls');
+                      });
+                    } else {
+                      log('🎛️ skip toggle (longPressed=$_isProgressLongPressed, isTapLike=$isTapLike)');
+                    }
+                  },
+                ),
+              ),
+            ),
+
+            // Custom selection toolbar
+            if (_selectedText.isNotEmpty && _selectionRect != null) _buildSelectionToolbar(),
+
+            ReaderUIBuilder.buildTopOverlay(
+              showControls: _showControls,
+              theme: _currentTheme,
+              bookTitle: _currentChapterTitle.isNotEmpty ? _currentChapterTitle : widget.book?.name ?? '',
+              onClose: _handleClose,
+              onMenuTap: _showReaderMenu,
+            ),
+            if (!_showControls && _currentChapterTitle.isNotEmpty)
+              ReaderUIBuilder.buildMinimalChapterTitle(
+                showControls: _showControls,
+                chapterTitle: _currentChapterTitle,
+              ),
+            ReaderUIBuilder.buildBottomOverlay(
+              showControls: _showControls,
+              theme: _currentTheme,
+              currentPage: _viewerCurrentPage,
+              totalPages: _viewerTotalPages,
+              isLoadingPages: _isLoadingPages,
+              onChapterDrawerTap: _showChapterDrawer,
+              onThemeSettingsTap: _showThemeSettings,
+              context: context,
+              isProgressLongPressed: _isProgressLongPressed,
+              tempSliderValue: _tempSliderValue,
+              lastProgressFactor: _lastProgressFactor,
+              isRegeneratingLocations: _isRegeneratingLocations,
+              onHorizontalDragStart: (details) {
+                _dragStartLocalX = details.localPosition.dx;
+                final currentNormalized = _viewerTotalPages > 1 ? (_viewerCurrentPage - 1) / (_viewerTotalPages - 1) : 0.0;
+                setState(() {
+                  _isProgressLongPressed = true;
+                  _dragStartValue = currentNormalized.clamp(0.0, 1.0);
+                  _tempSliderValue = _dragStartValue;
+                });
+              },
+              onHorizontalDragUpdate: (details) {
+                final RenderBox box = context.findRenderObject() as RenderBox;
+                final localX = details.localPosition.dx;
+                final delta = (localX - _dragStartLocalX) / box.size.width;
+                final percentage = (_dragStartValue + delta).clamp(0.0, 1.0);
+                setState(() {
+                  _tempSliderValue = percentage;
+                });
+              },
+              onHorizontalDragEnd: (details) {
+                final targetPage = (_tempSliderValue * _viewerTotalPages).round().clamp(1, _viewerTotalPages);
+                if (targetPage != _viewerCurrentPage) {
+                  _jumpToPage(targetPage);
+                }
+                setState(() {
+                  _isProgressLongPressed = false;
+                  _lastProgressFactor = _viewerTotalPages > 0 ? targetPage / _viewerTotalPages : 0.0;
+                });
+              },
+            ),
+            if (!_showControls && !_isLoadingPages)
+              ReaderUIBuilder.buildMinimalPageIndicator(
+                showControls: _showControls,
+                currentPage: _viewerCurrentPage,
+              ),
+            ReaderUIBuilder.buildLongPressPageIndicator(
+              isProgressLongPressed: _isProgressLongPressed,
+              theme: _currentTheme,
+              currentPage: _viewerCurrentPage,
+              totalPages: _viewerTotalPages,
+              tempSliderValue: _tempSliderValue,
+              chapterTitle: _currentChapterTitle,
+              context: context,
+              chapters: _chapters,
+              chapterPages: _chapterPages,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingBody() {
+    final isDark = _currentTheme.isDark;
+    final primaryTextColor = _currentTheme.textColor;
+    final secondaryTextColor = isDark ? Colors.white70 : Colors.black54;
+    final progressBackgroundColor = isDark ? Colors.grey.shade800 : Colors.grey.shade300;
+
+    return SafeArea(
+      child: SizedBox.expand(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.network(widget.imageUrl, width: 220, height: 330, fit: BoxFit.cover),
+                      const SizedBox(height: 80),
+                      Image.asset('assets/images/l1.png', width: 60, height: 30, fit: BoxFit.cover),
+                      const SizedBox(height: 20),
+                      Text(
+                        'loading_t'.tr,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontFamily: StringConstants.SFPro,
+                          fontWeight: FontWeight.w600,
+                          color: primaryTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: LinearProgressIndicator(
+                        value: _downloadProgress,
+                        backgroundColor: progressBackgroundColor,
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.mainColor),
+                        minHeight: 6,
+                      ),
+                    ),
+                    Container(
+                      width: 60,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${(_downloadProgress * 100).toStringAsFixed(0)}%',
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                          color: AppColors.mainColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_hasError)
+                Padding(
+                  padding: const EdgeInsets.only(top: 24.0),
+                  child: Column(
+                    children: [
+                      Text(
+                        _errorMessage ?? 'Unknown error',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: secondaryTextColor),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _hasError = false;
+                            _errorMessage = null;
+                            _downloadProgress = 0.0;
+                          });
+                          _initializeBook();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                        ),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingOverlay() {
+    return Positioned.fill(
+      child: Material(
+        color: _currentTheme.backgroundColor,
+        child: _buildLoadingBody(),
+      ),
+    );
+  }
+
+  Widget _buildLoadingView() {
+    return WillPopScope(
+      onWillPop: () async {
+        await _handleClose();
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: _currentTheme.backgroundColor,
+        body: _buildLoadingBody(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: _currentTheme.backgroundColor,
+        statusBarIconBrightness: _currentTheme.isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: _currentTheme.backgroundColor,
+        systemNavigationBarIconBrightness: _currentTheme.isDark ? Brightness.light : Brightness.dark,
+      ),
+      child: _epubSource == null
+          ? _buildLoadingView()
+          : Stack(
+              children: [
+                _buildReaderView(),
+                if (!_isReaderReady) _buildLoadingOverlay(),
+              ],
+            ),
     );
   }
 }

@@ -10,8 +10,16 @@ import 'package:elkitap/modules/audio_player/controllers/bluetooth_controller.da
 
 class BluetoothPopup {
   static void show(BuildContext context) {
+    print('[BT-UI] 📱 === Bluetooth Popup OPENED ===');
+
     final bluetoothController = Get.put(BluetoothController());
-    bluetoothController.startScan();
+
+    print('[BT-UI] 🔍 Getting bonded devices first...');
+    // Check for bonded devices first, then start scanning
+    bluetoothController.getBondedDevices().then((_) {
+      print('[BT-UI] ✅ getBondedDevices completed, starting scan...');
+      bluetoothController.startScan();
+    });
 
     showDialog(
       context: context,
@@ -65,7 +73,9 @@ class BluetoothPopup {
       ),
     ).then((_) {
       // Stop scanning when dialog closes
+      print('[BT-UI] 🔴 Bluetooth Popup CLOSED - stopping scan');
       bluetoothController.stopScan();
+      print('[BT-UI] 📱 === Bluetooth Popup END ===');
     });
   }
 
@@ -103,7 +113,10 @@ class BluetoothPopup {
                 )
               : IconButton(
                   icon: const Icon(Icons.refresh, color: Colors.white, size: 20),
-                  onPressed: () {
+                  onPressed: () async {
+                    print('[BT-UI] 🔄 Refresh button pressed');
+                    // Refresh both bonded devices and start new scan
+                    await bluetoothController.getBondedDevices();
                     bluetoothController.startScan();
                   },
                   padding: EdgeInsets.zero,
@@ -117,38 +130,86 @@ class BluetoothPopup {
   static Widget _buildDeviceList(BluetoothController bluetoothController) {
     return Flexible(
       child: Obx(() {
-        final devices = bluetoothController.scannedDevices;
+        final scannedDevices = bluetoothController.scannedDevices;
+        final bondedDevices = bluetoothController.bondedDevices;
+        final connectedDevice = bluetoothController.connectedDevice.value;
+        final activeAudioDevice = bluetoothController.activeAudioDevice.value;
 
-        // Show scanning indicator
-        if (bluetoothController.isScanning.value && devices.isEmpty) {
+        print('[BT-UI] 🔄 Building device list:');
+        print('[BT-UI]   - Scanned devices: ${scannedDevices.length}');
+        print('[BT-UI]   - Bonded devices: ${bondedDevices.length}');
+        print('[BT-UI]   - Connected device: ${connectedDevice?.name ?? "null"}');
+        print('[BT-UI]   - Active audio device: ${activeAudioDevice?.name ?? "null"}');
+        print('[BT-UI]   - Is scanning: ${bluetoothController.isScanning.value}');
+
+        // Combine bonded and scanned devices, removing duplicates
+        final allDevicesMap = <String, dynamic>{};
+
+        // Add bonded devices first
+        for (var device in bondedDevices) {
+          allDevicesMap[device.address] = device;
+        }
+
+        // Add scanned devices (overwrite if already exists)
+        for (var device in scannedDevices) {
+          allDevicesMap[device.address] = device;
+        }
+
+        final allDevices = allDevicesMap.values.toList();
+
+        // Show scanning indicator if no devices yet
+        if (bluetoothController.isScanning.value && allDevices.isEmpty) {
+          print('[BT-UI] 🔄 Showing scanning indicator');
           return _buildScanningIndicator();
         }
 
-        // Show empty state
-        if (devices.isEmpty) {
+        // Show empty state if no devices at all
+        if (allDevices.isEmpty) {
+          print('[BT-UI] ❌ No devices to show - showing empty state');
           return _buildEmptyState();
         }
+
+        print('[BT-UI] 📋 Total devices to show: ${allDevices.length}');
+
+        // Sort devices: connected first, then bonded, then discovered
+        allDevices.sort((a, b) {
+          final aConnected = bluetoothController.isDeviceConnected(a);
+          final bConnected = bluetoothController.isDeviceConnected(b);
+
+          if (aConnected && !bConnected) return -1;
+          if (!aConnected && bConnected) return 1;
+
+          final aBonded = a.isBonded;
+          final bBonded = b.isBonded;
+
+          if (aBonded && !bBonded) return -1;
+          if (!aBonded && bBonded) return 1;
+
+          return 0;
+        });
 
         // Show device list
         return ListView.separated(
           shrinkWrap: true,
-          itemCount: devices.length,
-          separatorBuilder: (context, index) => Divider(
-            height: 1,
-            thickness: 0.5,
-            color: Colors.white.withOpacity(0.15),
-          ),
+          itemCount: allDevices.length,
+          separatorBuilder: (context, index) {
+            return Divider(
+              height: 1,
+              thickness: 0.5,
+              color: Colors.white.withOpacity(0.15),
+            );
+          },
           itemBuilder: (context, index) {
-            final result = devices[index];
-            final device = result.device;
+            final device = allDevices[index];
             final isConnected = bluetoothController.isDeviceConnected(device);
-            final deviceName = bluetoothController.getDeviceName(result);
+            final deviceName = bluetoothController.getDeviceName(device);
 
             return _buildDeviceItem(
               bluetoothController: bluetoothController,
               device: device,
               deviceName: deviceName,
               isConnected: isConnected,
+              isBonded: device.isBonded,
             );
           },
         );
@@ -215,7 +276,11 @@ class BluetoothPopup {
     required dynamic device,
     required String deviceName,
     required bool isConnected,
+    bool isBonded = false,
   }) {
+    final isAudioActive = bluetoothController.activeAudioDevice.value?.address == device.address;
+    final isDataConnected = bluetoothController.connectedDevice.value?.address == device.address;
+
     return InkWell(
       onTap: () async {
         await bluetoothController.toggleConnection(device);
@@ -239,15 +304,31 @@ class BluetoothPopup {
                 children: [
                   Text(
                     deviceName == 'Unknown Device' ? 'unknown_device_t'.tr : deviceName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w400,
-                      color: Colors.white,
+                      color: isConnected ? Colors.greenAccent : Colors.white,
                     ),
                   ),
-                  if (deviceName == 'Unknown Device')
+                  if (isDataConnected)
                     Text(
-                      device.remoteId.toString(),
+                      'connected'.tr,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.greenAccent,
+                      ),
+                    )
+                  else if (isAudioActive)
+                    Text(
+                      'audio_active'.tr,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.lightGreenAccent,
+                      ),
+                    )
+                  else if (isBonded)
+                    Text(
+                      'paired'.tr,
                       style: const TextStyle(
                         fontSize: 13,
                         color: Colors.white70,
@@ -258,9 +339,9 @@ class BluetoothPopup {
             ),
             if (isConnected)
               const Icon(
-                Icons.check,
+                Icons.check_circle,
                 size: 24,
-                color: Colors.white,
+                color: Colors.greenAccent,
               ),
           ],
         ),

@@ -5,7 +5,7 @@ import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/core/widgets/common/custom_icon.dart';
 import 'package:elkitap/core/utils/performance_utils.dart';
 import 'package:elkitap/modules/library/controllers/library_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/modules/store/widgets/book_card_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:elkitap/modules/store/model/book_item_model.dart';
@@ -175,7 +175,7 @@ class _BookListItemState extends State<BookListItem> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          widget.book.authors.first.name,
+                          widget.book.authors.isNotEmpty ? widget.book.authors.first.name : 'Unknown Author',
                           style: TextStyle(
                             fontSize: 14,
                             fontFamily: StringConstants.SFPro,

@@ -5,7 +5,14 @@ import 'package:get/get.dart';
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/modules/audio_player/controllers/audio_player_controller.dart';
 
-class AudioProgressBar extends StatelessWidget {
+class AudioProgressBar extends StatefulWidget {
+  @override
+  State<AudioProgressBar> createState() => _AudioProgressBarState();
+}
+
+class _AudioProgressBarState extends State<AudioProgressBar> {
+  double? _draggingValue;
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<AudioPlayerController>();
@@ -15,6 +22,8 @@ class AudioProgressBar extends StatelessWidget {
       final position = controller.position.value;
       final durationSeconds = duration.inSeconds.toDouble();
       final positionSeconds = position.inSeconds.toDouble().clamp(0.0, durationSeconds > 0 ? durationSeconds : 1.0);
+
+      final displayValue = _draggingValue ?? positionSeconds;
 
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 20),
@@ -27,16 +36,21 @@ class AudioProgressBar extends StatelessWidget {
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
               ),
               child: Slider(
-                value: positionSeconds,
+                value: displayValue,
                 min: 0.0,
                 max: durationSeconds > 0 ? durationSeconds : 1.0,
                 activeColor: Colors.white,
                 inactiveColor: Colors.white30,
                 onChanged: (value) {
-                  controller.seek(Duration(seconds: value.toInt()));
+                  setState(() {
+                    _draggingValue = value;
+                  });
                 },
                 onChangeEnd: (value) {
                   controller.seek(Duration(seconds: value.toInt()));
+                  setState(() {
+                    _draggingValue = null;
+                  });
                 },
               ),
             ),
@@ -45,7 +59,7 @@ class AudioProgressBar extends StatelessWidget {
               child: Row(
                 children: [
                   Text(
-                    controller.formatDuration(position),
+                    controller.formatDuration(Duration(seconds: displayValue.toInt())),
                     textAlign: TextAlign.left,
                     style: const TextStyle(
                       color: Colors.white70,
@@ -64,7 +78,7 @@ class AudioProgressBar extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    controller.formatRemainingTime(duration - position),
+                    controller.formatRemainingTime(duration - Duration(seconds: displayValue.toInt())),
                     textAlign: TextAlign.right,
                     style: const TextStyle(
                       color: Colors.white70,

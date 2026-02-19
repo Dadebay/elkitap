@@ -7,7 +7,7 @@ import 'package:elkitap/modules/genre/view/books_grid_screen_view.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
 import 'package:elkitap/modules/store/controllers/book_detail_controller.dart';
 import 'package:elkitap/modules/store/model/book_detail_model.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 import 'package:elkitap/modules/store/widgets/popular_gerners_book_cart.dart';
 import 'package:flutter/material.dart';
@@ -106,8 +106,7 @@ class _GenreBookListState extends State<_GenreBookList> {
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: GestureDetector(
             onTap: () {
-              Get.to(() => BooksGridScreen(
-                  title: widget.genre.name, id: widget.genre.id));
+              Get.to(() => BooksGridScreen(title: widget.genre.name, id: widget.genre.id));
             },
             child: Row(
               children: [
@@ -181,8 +180,7 @@ class _GenreBookListState extends State<_GenreBookList> {
                     tabIndex: 0,
                     onTap: () {
                       log('Book clicked: ${book.name} (ID: ${book.id})');
-                      Get.to(() => BookDetailView(book: book),
-                          preventDuplicates: false);
+                      Get.to(() => BookDetailView(book: book), preventDuplicates: false);
                     },
                     discountPercentage: 1,
                   ),

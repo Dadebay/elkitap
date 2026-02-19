@@ -29,7 +29,7 @@ android {
     }
     defaultConfig {
         applicationId = "com.googadev.elkitap"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName

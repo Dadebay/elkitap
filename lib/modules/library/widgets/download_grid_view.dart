@@ -56,9 +56,7 @@ class DownloadedBookGridItem extends StatefulWidget {
 class _DownloadedBookGridItemState extends State<DownloadedBookGridItem> {
   // Navigate to book detail page (info view)
   void _openBookDetail() {
-    Get.to(() => DownloadedBookDetailView(
-          bookId: widget.book.id,
-        ));
+    Get.to(() => DownloadedBookDetailView(bookId: widget.book.id));
   }
 
   @override

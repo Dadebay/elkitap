@@ -1,5 +1,7 @@
+import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
+import 'package:elkitap/core/widgets/widgets.dart';
 import 'package:elkitap/modules/paymant/controller/payment_controller.dart';
 import 'package:elkitap/modules/paymant/models/tariff_model.dart';
 import 'package:elkitap/modules/paymant/view/payment_webview_screen.dart';
@@ -7,7 +9,7 @@ import 'package:elkitap/modules/paymant/widget/bank_selection_dialog.dart';
 import 'package:elkitap/modules/paymant/widget/bank_selector.dart';
 import 'package:elkitap/modules/paymant/widget/promo_image.dart';
 import 'package:elkitap/modules/paymant/widget/subscribe_button.dart';
-import 'package:elkitap/modules/paymant/widget/subscription_header.dart';
+
 import 'package:elkitap/modules/paymant/widget/tariff_list.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -29,16 +31,33 @@ class _SubscriptionPlansSheetState extends State<SubscriptionPlansSheet> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.95,
       color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1C1C1E) : Colors.grey[100],
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20).copyWith(top: 36),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SubscriptionHeader(
-            onBack: () => Navigator.pop(context),
+          GestureDetector(
+            onTap: () async {
+              await Future.delayed(Duration.zero);
+              Get.back();
+            },
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(Icons.arrow_back_ios),
+                ),
+                Text(
+                  'leading_text'.tr,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontFamily: StringConstants.SFPro,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
           const AccountInfoCard(),
-          const SizedBox(height: 20),
           const PromoImage(),
           const SizedBox(height: 20),
           BankSelector(
@@ -97,8 +116,9 @@ class _SubscriptionPlansSheetState extends State<SubscriptionPlansSheet> {
         ),
       );
 
-      if (result == true) {
-        Navigator.pop(context, true);
+      if (result != null && result != false) {
+        // Pass the payment result data back
+        Navigator.pop(context, result);
       }
     }
   }

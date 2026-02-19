@@ -19,6 +19,8 @@ class PromoCodeController extends GetxController {
     }
 
     try {
+      final previousDays = _authController.currentUser.value?.subscription?.daysRemaining ?? 0;
+
       isLoading.value = true;
       errorMessage.value = '';
       isSuccess.value = false;
@@ -34,9 +36,19 @@ class PromoCodeController extends GetxController {
 
       if (response['success'] == true) {
         isSuccess.value = true;
-        promoData.value = response['data'];
+        promoData.value = Map<String, dynamic>.from(
+          response['data'] ?? <String, dynamic>{},
+        );
         await _authController.getMe();
-        return response['data'];
+
+        final newDays = _authController.currentUser.value?.subscription?.daysRemaining ?? 0;
+        final addedDays = (newDays - previousDays).clamp(0, 10000);
+
+        return {
+          'data': promoData.value ?? <String, dynamic>{},
+          'added_days': addedDays,
+          'days_total': newDays,
+        };
       } else {
         final error = response['error'] ?? 'Invalid promo code';
         errorMessage.value = error;

@@ -4,7 +4,7 @@ import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/theme/app_colors.dart';
 import 'package:elkitap/core/widgets/common/custom_icon.dart';
 import 'package:elkitap/modules/store/model/book_item_model.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

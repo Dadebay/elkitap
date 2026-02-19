@@ -391,11 +391,14 @@ class BooksDetailController extends GetxController {
   // Fetch only the progress from API (lightweight refresh)
   Future<void> fetchProgress() async {
     if (bookDetail.value == null) {
+      log('📊 fetchProgress: bookDetail is null');
       return;
     }
 
     try {
       final bookId = bookDetail.value!.id;
+      log('📊 fetchProgress: Fetching progress for book ID: $bookId');
+
       final response = await _networkManager.get(
         ApiEndpoints.bookDetail(bookId),
         sendToken: true,
@@ -403,21 +406,30 @@ class BooksDetailController extends GetxController {
 
       if (response['success']) {
         final progressData = response['data']['progress'];
+        log('📊 fetchProgress: Server response - progress: $progressData');
+
         if (progressData != null) {
-         
           progress.value = progressData.toString();
+          log('📊 fetchProgress: Set progress.value to: ${progress.value}');
+
           try {
             final progressValue = double.parse(progress.value!);
             final progressDecimal = progressValue / 100.0; // Convert percentage to decimal
+            log('📊 fetchProgress: Converted to decimal: $progressDecimal (${(progressDecimal * 100).toStringAsFixed(1)}%)');
 
             // Save to local storage using the same key pattern as ProgressSyncMixin
             if (bookDetail.value?.id != null && selectedTranslateId.value != null) {
               final uniqueBookId = '${bookDetail.value!.id}_t${selectedTranslateId.value}';
               final key = '$_audioProgressKey$uniqueBookId';
               _storage.write(key, progressDecimal);
+              log('📊 fetchProgress: Saved to storage with key: $key, value: $progressDecimal');
             }
-          } catch (e) {}
-        } else {}
+          } catch (e) {
+            log('📊 fetchProgress: Error parsing progress: $e');
+          }
+        } else {
+          log('📊 fetchProgress: No progress data from server');
+        }
       } else {}
     } catch (e) {}
   }
@@ -548,11 +560,16 @@ class BooksDetailController extends GetxController {
 
     // Check translate-level images
     final translate = getCurrentTranslate();
-    if (translate?.image != null && translate!.image!.isNotEmpty) {
+    if (translate != null) {
+      // In audio mode, prioritize translate audioImage
       if (isAudio.value && translate.audioImage != null && translate.audioImage!.isNotEmpty) {
         return getFullImageUrl(translate.audioImage);
       }
-      return getFullImageUrl(translate.image);
+
+      // Fallback to translate image (text book cover or audio book without separate audio cover)
+      if (translate.image != null && translate.image!.isNotEmpty) {
+        return getFullImageUrl(translate.image);
+      }
     }
 
     // Fallback to book-level image
@@ -565,9 +582,7 @@ class BooksDetailController extends GetxController {
 
   String getBookDescription() {
     final translate = getCurrentTranslate();
-    if (isAudio.value && translate?.aiDescription != null) {
-      return translate!.aiDescription!;
-    }
+
     return translate?.description ?? '';
   }
 

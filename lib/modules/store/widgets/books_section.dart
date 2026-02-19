@@ -1,7 +1,7 @@
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/modules/genre/view/books_author_grid_view.dart';
 import 'package:elkitap/modules/store/model/book_item_model.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/modules/store/widgets/book_audi_cart.dart';
 import 'package:elkitap/modules/store/widgets/popular_gerners_book_cart.dart';
 import 'package:flutter/material.dart';

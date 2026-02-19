@@ -37,8 +37,7 @@ class DownloadedListScreen extends StatelessWidget {
           Expanded(
             child: Obx(() {
               // Loading state
-              if (controller.isLoading.value &&
-                  controller.downloadedBooks.isEmpty) {
+              if (controller.isLoading.value && controller.downloadedBooks.isEmpty) {
                 return const Center(
                   child: LoadingWidget(),
                 );
@@ -48,9 +47,7 @@ class DownloadedListScreen extends StatelessWidget {
                   descriptionKey: 'emptyDownloadedDesc',
                 );
               }
-              return controller.isGridView.value
-                  ? DownloadedGridView(controller: controller)
-                  : DownloadedListView(controller: controller);
+              return controller.isGridView.value ? DownloadedGridView(controller: controller) : DownloadedListView(controller: controller);
             }),
           ),
         ],
@@ -58,45 +55,34 @@ class DownloadedListScreen extends StatelessWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(
-      DownloadController controller, BuildContext context) {
+  PreferredSizeWidget _buildAppBar(DownloadController controller, BuildContext context) {
     return AppBar(
       leadingWidth: 140,
       leading: Obx(() {
         if (controller.selectedBooks.isEmpty) {
-          return Row(
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
+          return GestureDetector(
+            onTap: () {
+              Get.back();
+            },
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 16.0),
+                  child: Icon(Icons.arrow_back_ios),
                 ),
-                onPressed: () {
-                  Get.back();
-                },
-              ),
-              Text(
-                'leading_text'.tr,
-                style: TextStyle(
-                    fontSize: 17,
-                    fontFamily: StringConstants.SFPro,
-                    fontWeight: FontWeight.w500),
-              ),
-            ],
+                Text(
+                  'leading_text'.tr,
+                  style: TextStyle(fontSize: 17, fontFamily: StringConstants.SFPro, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
           );
         } else {
           return TextButton(
             onPressed: controller.selectAll,
             child: Text(
-              controller.selectedBooks.length ==
-                      controller.downloadedBooks.length
-                  ? 'deselectAll'.tr
-                  : 'selectAll'.tr,
-              style: TextStyle(
-                  fontFamily: StringConstants.SFPro,
-                  fontSize: 16,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black),
+              controller.selectedBooks.length == controller.downloadedBooks.length ? 'deselectAll'.tr : 'selectAll'.tr,
+              style: TextStyle(fontFamily: StringConstants.SFPro, fontSize: 16, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
             ),
           );
         }
@@ -139,10 +125,7 @@ class DownloadedListScreen extends StatelessWidget {
                           children: [
                             const SizedBox(width: 8),
                             Obx(() => Text(
-                                  controller.selectedBooks.length ==
-                                          controller.downloadedBooks.length
-                                      ? 'deselectAll'.tr
-                                      : 'selectAll'.tr,
+                                  controller.selectedBooks.length == controller.downloadedBooks.length ? 'deselectAll'.tr : 'selectAll'.tr,
                                   style: const TextStyle(
                                     fontFamily: StringConstants.SFPro,
                                   ),
@@ -152,10 +135,7 @@ class DownloadedListScreen extends StatelessWidget {
                               title: IconConstants.d5,
                               height: 24,
                               width: 24,
-                              color: Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                             ),
                           ],
                         ),
@@ -181,14 +161,7 @@ class DownloadedListScreen extends StatelessWidget {
                                   fontFamily: StringConstants.SFPro,
                                 )),
                             const Spacer(),
-                            CustomIcon(
-                                title: IconConstants.d8,
-                                height: 24,
-                                width: 24,
-                                color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black)
+                            CustomIcon(title: IconConstants.d8, height: 24, width: 24, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)
                           ],
                         ),
                       ),
@@ -211,14 +184,7 @@ class DownloadedListScreen extends StatelessWidget {
                                   fontFamily: StringConstants.SFPro,
                                 )),
                             const Spacer(),
-                            CustomIcon(
-                                title: IconConstants.d9,
-                                height: 24,
-                                width: 24,
-                                color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black),
+                            CustomIcon(title: IconConstants.d9, height: 24, width: 24, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
                           ],
                         ),
                       ),
@@ -260,9 +226,7 @@ class DownloadedListScreen extends StatelessWidget {
                       'done'.tr,
                       style: TextStyle(
                         fontFamily: StringConstants.SFPro,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),

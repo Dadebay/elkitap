@@ -39,10 +39,16 @@ class AudiobookPlayerScreen extends StatelessWidget {
     BooksDetailController? bookDetailController;
 
     if (bookId != null) {
-      bookDetailController = Get.put(
-        BooksDetailController(),
-        tag: 'audio_player_$bookId',
-      );
+      final controllerTag = bookId.toString();
+      if (Get.isRegistered<BooksDetailController>(tag: controllerTag)) {
+        bookDetailController =
+            Get.find<BooksDetailController>(tag: controllerTag);
+      } else {
+        bookDetailController = Get.put(
+          BooksDetailController(),
+          tag: controllerTag,
+        );
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         bookDetailController!.fetchBookDetail(bookId!);
         bookDetailController.isAudio.value = true;
@@ -96,7 +102,8 @@ class AudiobookPlayerScreen extends StatelessWidget {
                     AudioPlaybackControls(),
                     AudioBottomControls(
                       onSpeedTap: () => SpeedPopup.show(context, controller),
-                      onSleepTimerTap: () => SleepTimerPopup.show(context, controller),
+                      onSleepTimerTap: () =>
+                          SleepTimerPopup.show(context, controller),
                       onBluetoothTap: () => BluetoothPopup.show(context),
                       onDriverModeTap: () {
                         controller.enableDriverMode();

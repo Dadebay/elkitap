@@ -6,6 +6,7 @@ import 'package:elkitap/core/config/secure_file_storage_service.dart';
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/data/network/network_manager.dart';
+import 'package:elkitap/data/network/token_managet.dart';
 import 'package:elkitap/modules/library/model/book_download_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -14,6 +15,7 @@ import 'package:get_storage/get_storage.dart';
 class DownloadController extends GetxController {
   final SecureFileStorageService _storageService = SecureFileStorageService();
   final NetworkManager _networkManager = Get.find<NetworkManager>();
+  final TokenManager _tokenManager = Get.find<TokenManager>();
   final GetStorage _storage = GetStorage();
 
   static const String _downloadsKey = 'book_downloads';
@@ -199,6 +201,16 @@ class DownloadController extends GetxController {
   Future<void> loadDownloadedBooks() async {
     try {
       isLoading.value = true;
+
+      // Check if user is authenticated
+      final token = _tokenManager.getToken();
+      if (token == null || token.isEmpty) {
+        print('⚠️ No token found, clearing downloaded books');
+        downloadedBooks.clear();
+        isLoading.value = false;
+        return;
+      }
+
       final downloads = _getDownloadsMap();
       downloadedBooks.value = downloads.values.map((json) => BookDownload.fromJson(Map<String, dynamic>.from(json as Map))).toList();
       downloadedBooks.sort((a, b) => b.downloadDate.compareTo(a.downloadDate));
@@ -392,7 +404,7 @@ class DownloadController extends GetxController {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: 'remove_dialog_remove_t'.tr,
+                        text: book.title,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontFamily: StringConstants.SFPro,
@@ -413,7 +425,6 @@ class DownloadController extends GetxController {
                 ),
                 const SizedBox(height: 20),
 
-                const Divider(height: 1),
                 TextButton(
                   onPressed: () async {
                     Get.back();
@@ -425,11 +436,15 @@ class DownloadController extends GetxController {
                   },
                   style: TextButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
+                    backgroundColor: Colors.grey.shade200,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: Text(
                     'remove_button_t'.tr,
-                    style: const TextStyle(
-                      color: Colors.red,
+                    style: TextStyle(
+                      color: Colors.red.withOpacity(0.6),
                       fontSize: 18,
                       fontFamily: StringConstants.SFPro,
                       fontWeight: FontWeight.w600,
@@ -437,16 +452,19 @@ class DownloadController extends GetxController {
                   ),
                 ),
 
-                const Divider(height: 1),
                 TextButton(
                   onPressed: () => Get.back(),
                   style: TextButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: Text(
                     'cancel_button_t'.tr,
                     style: const TextStyle(
                       fontSize: 18,
+                      color: Colors.black,
                       fontFamily: StringConstants.SFPro,
                       fontWeight: FontWeight.w500,
                     ),

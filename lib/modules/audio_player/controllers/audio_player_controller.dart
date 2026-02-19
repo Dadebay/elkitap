@@ -1,14 +1,19 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 import 'dart:developer';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:just_audio/just_audio.dart';
+import 'package:audio_service/audio_service.dart';
 
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/data/network/network_manager.dart';
+import 'package:elkitap/modules/audio_player/services/audio_handler.dart';
+import 'package:elkitap/main.dart' show audioHandler;
 
 class AudioPlayerController extends GetxController {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  // Use the global audioHandler that is registered with iOS Now Playing
+  ElkitapAudioHandler get _handler => audioHandler;
   NetworkManager? _networkManager;
 
   // GetStorage for local persistence
@@ -47,51 +52,56 @@ class AudioPlayerController extends GetxController {
     if (Get.isRegistered<NetworkManager>()) {
       _networkManager = Get.find<NetworkManager>();
     }
-    _initAudio();
+    _setupListeners();
   }
 
-  Future<void> _initAudio() async {
-    try {
-      // Don't load any audio at initialization to avoid ExoPlayer errors
-      // Audio will be loaded when user plays something
-
-      // Setup stream listeners without loading audio
-      _audioPlayer.durationStream.listen((d) {
-        if (d != null) {
-          duration.value = d;
-          if (!_hasRestoredProgress && currentBookId.value != 0) {
-            _restoreProgress();
-          }
+  void _setupListeners() {
+    // Listen to the underlying just_audio player inside our handler
+    _handler.player.durationStream.listen((d) {
+      if (d != null) {
+        duration.value = d;
+        if (!_hasRestoredProgress && currentBookId.value != 0) {
+          _restoreProgress();
         }
-      });
-
-      _audioPlayer.positionStream.listen((p) {
-        position.value = p;
-        if (isPlaying.value && duration.value.inSeconds > 0) {
-          _debouncedSaveProgress();
-        }
-      });
-
-      _audioPlayer.playerStateStream.listen((state) {
-        isPlaying.value = state.playing;
-      });
-    } catch (e) {
-      // Silently handle any initialization errors
-      print('🔇 AudioPlayer initialization error (ignored): $e');
-    }
-  }
-
-  Future<void> loadAudio(String source, bool isAsset) async {
-    try {
-      if (isAsset) {
-        await _audioPlayer.setAsset(source);
-      } else {
-        await _audioPlayer.setUrl(source);
       }
+    });
+
+    _handler.player.positionStream.listen((p) {
+      position.value = p;
+      if (isPlaying.value && duration.value.inSeconds > 0) {
+        _debouncedSaveProgress();
+      }
+    });
+
+    _handler.player.playerStateStream.listen((state) {
+      isPlaying.value = state.playing;
+    });
+  }
+
+  Future<void> loadAudio(String source, bool isAsset, {String? title, String? artist, Uri? artUri}) async {
+    try {
+      final mediaItem = MediaItem(
+        id: source,
+        title: title ?? 'Audio',
+        artist: artist ?? '',
+        artUri: artUri,
+        album: 'Elkitap',
+      );
+
+      if (isAsset) {
+        await _handler.loadAsset(source, mediaItem);
+      } else {
+        await _handler.loadUrl(source, mediaItem);
+      }
+
       audioSource.value = source;
       isAssetAudio.value = isAsset;
+
+      print('📱 Audio loaded with iOS Now Playing metadata:');
+      print('   Title: $title');
+      print('   Artist: $artist');
+      print('   Art: $artUri');
     } catch (e) {
-      // Silently handle audio loading errors (e.g., invalid format, missing file)
       print('🔇 Audio load error (ignored): $e');
     }
   }
@@ -124,7 +134,15 @@ class AudioPlayerController extends GetxController {
     currentBookCover.value = bookCover;
     currentBookId.value = bookId;
 
-    await loadAudio(hlsUrl, false);
+    // Load audio with full metadata → iOS Now Playing picks this up automatically
+    final artUri = bookCover.isNotEmpty ? Uri.parse(bookCover) : null;
+    await loadAudio(
+      hlsUrl,
+      false,
+      title: bookTitle,
+      artist: bookAuthor,
+      artUri: artUri,
+    );
 
     final savedProgress = _getLocalProgress(bookId);
 
@@ -148,24 +166,22 @@ class AudioPlayerController extends GetxController {
 
   void playPause() {
     if (isPlaying.value) {
-      _audioPlayer.pause();
+      _handler.pause();
     } else {
-      _audioPlayer.play();
+      _handler.play();
     }
   }
 
   void seekForward() {
-    final newPosition = position.value + const Duration(seconds: 15);
-    _audioPlayer.seek(newPosition);
+    _handler.skipToNext(); // mapped to +15s in handler
   }
 
   void seekBackward() {
-    final newPosition = position.value - const Duration(seconds: 15);
-    _audioPlayer.seek(newPosition > Duration.zero ? newPosition : Duration.zero);
+    _handler.skipToPrevious(); // mapped to -15s in handler
   }
 
   void seek(Duration position) {
-    _audioPlayer.seek(position);
+    _handler.seek(position);
   }
 
   void changeSpeed() {
@@ -176,7 +192,7 @@ class AudioPlayerController extends GetxController {
     } else {
       playbackSpeed.value = 1.0;
     }
-    _audioPlayer.setSpeed(playbackSpeed.value);
+    _handler.setSpeed(playbackSpeed.value);
   }
 
   String formatDuration(Duration d) {
@@ -201,12 +217,12 @@ class AudioPlayerController extends GetxController {
     final minutes = d.inMinutes.remainder(60);
 
     if (hours == 0) {
-      return '$minutes ' + 'minute'.tr + (minutes > 1 ? 's' : '');
+      return '$minutes ${'minute_full'.tr}';
     } else {
       if (minutes > 0) {
-        return '$hours ' + 'hour_t'.tr + (hours > 1 ? 's' : '') + ', $minutes ' + 'minute'.tr + (minutes > 1 ? 's' : '');
+        return '$hours ${'hour_full'.tr}  $minutes ${'minute_full'.tr}';
       } else {
-        return '$hours ' + 'hour_t'.tr + (hours > 1 ? 's' : '');
+        return '$hours ${'hour_full'.tr}';
       }
     }
   }
@@ -218,7 +234,7 @@ class AudioPlayerController extends GetxController {
 
   void setSpeed(double speed) {
     playbackSpeed.value = speed;
-    _audioPlayer.setSpeed(speed);
+    _handler.setSpeed(speed);
   }
 
   void _debouncedSaveProgress() {
@@ -344,7 +360,7 @@ class AudioPlayerController extends GetxController {
     sleepTimerRemaining.value = getRemainingTime();
 
     _sleepTimer = Timer(duration, () {
-      _audioPlayer.pause();
+      _handler.pause();
       sleepTimerDuration.value = null;
       sleepTimerEndTime.value = null;
       sleepTimerRemaining.value = '';
@@ -393,7 +409,7 @@ class AudioPlayerController extends GetxController {
 
   Future<void> stopAudio() async {
     try {
-      await _audioPlayer.pause();
+      await _handler.pause();
       isPlaying.value = false;
 
       // Safely hide mini player
@@ -412,7 +428,7 @@ class AudioPlayerController extends GetxController {
   @override
   void onClose() {
     try {
-      _audioPlayer.dispose();
+      // Do NOT dispose the handler here — it lives for the app lifetime
       cancelSleepTimer();
       _saveProgressTimer?.cancel();
       _saveProgress();

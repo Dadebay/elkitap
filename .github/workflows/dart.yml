@@ -1,0 +1,100 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: "Conditional Build & Email"
+
+on:
+  push:
+    branches: [main, dev]
+
+jobs:
+  dev-job:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    name: Dev Branch Push
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Dev Code
+        uses: actions/checkout@v4
+
+      - name: Log Dev Push
+        run: echo "Pushed to dev branch. No build or release triggered."
+
+  main-job:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    name: Build  APK (Main Only)
+    permissions:
+      contents: write
+
+    steps:
+      # 1. Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Set Up Java
+      - name: Set Up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'oracle'
+          java-version: '17'
+
+      # 3. Set Up Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.0'
+          channel: 'stable'
+
+      # 5. Install Dependencies
+      - name: Install Dependencies
+        run: flutter pub get
+
+      # 6. Build APK
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 7. Extract Version
+      - name: Extract version from pubspec.yaml
+        id: extract_version
+        run: |
+          version=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | tr -d '\r')
+          echo "VERSION=$version" >> $GITHUB_ENV
+
+      # 8. Create GitHub Release
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: build/app/outputs/flutter-apk/app-release.apk
+          tag: v${{ env.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+
+      # #8 Send APK via Gmail
+      # - name: Send APK via Gmail
+      #   uses: dawidd6/action-send-mail@v3
+      #   with:
+      #     server_address: smtp.gmail.com
+      #     server_port: 465
+      #     username: ${{ secrets.EMAIL_USER }}
+      #     password: ${{ secrets.EMAIL_PASSWORD }}
+      #     subject: "New Flutter APK v${{ env.VERSION }}"
+      #     body: |
+      #       Hello,
+
+      #       A new Flutter APK (v${{ env.VERSION }}) has been built and released.
+
+      #       Repository: ${{ github.repository }}
+      #       Branch: ${{ github.ref_name }}
+
+      #       👉 Download APK v${{ env.VERSION }}:
+      #       https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/app-development-release.apk
+
+      #       Regards,  
+      #       GitHub Actions
+      #     content_type: text/html
+      #     to: guwanchaldurdyyew01@gmail.com, 
+      #     from: GitHub Actions <${{ secrets.EMAIL_USER }}>

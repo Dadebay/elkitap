@@ -1,4 +1,3 @@
-import 'package:cosmos_epub/cosmos_epub.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/library/controllers/note_controller.dart';
@@ -19,76 +18,73 @@ class EpubNoteHandler {
     required this.authService,
   });
 
-  void register(Book? currentBook, String bookId) {
-    CosmosEpub.registerAddNoteHandler((bookId, selectedText) async {
-      try {
-        if (selectedText.trim().isEmpty) {
-          _showErrorSnackbar(
-            'error_title'.tr,
-            'please_select_text_to_create_note'.tr,
-            Colors.orange,
-          );
-          return;
-        }
-
-        final book = currentBook ??
-            allBooksController.books.firstWhereOrNull(
-              (b) => b.id.toString() == bookId,
-            );
-
-        _showLoadingDialog();
-
-        final fullNote = selectedText.trim();
-        final snippet = _getSnippet(fullNote, wordCount: 3);
-
-        final result = await notesController.addNote(
-          bookId: bookId,
-          note: fullNote,
-          snippet: snippet,
-          bookTitle: book?.name ?? 'unknown_book'.tr,
-          bookAuthor: book?.authors.isNotEmpty == true ? book!.authors.first.name : 'unknown_author'.tr,
+  /// Handle note creation from text selection
+  /// Called directly from EpubViewer's onTextSelected callback
+  Future<void> handleNoteSelection(
+      Book? currentBook, String bookId, String selectedText,
+      {String? userNote}) async {
+    try {
+      if (selectedText.trim().isEmpty) {
+        _showErrorSnackbar(
+          'error_title'.tr,
+          'please_select_text_to_create_note'.tr,
+          Colors.orange,
         );
+        return;
+      }
 
-        _closeDialog();
+      final book = currentBook ??
+          allBooksController.books.firstWhereOrNull(
+            (b) => b.id.toString() == bookId,
+          );
 
-        if (result['success'] == true) {
-          _showSuccessSnackbar('note_saved_message'.tr);
-        } else {
-          if (result['message']?.toString().toLowerCase().contains('authentication') == true) {
-            authService.showLoginBottomSheet();
-          } else {
-            _showErrorSnackbar(
-              'error'.tr,
-              result['message'] ?? 'failed_to_save_note'.tr,
-              Colors.red,
-            );
-          }
-        }
-      } catch (e) {
-        _closeDialog();
+      _showLoadingDialog();
 
-        if (authService.isAuthError(e)) {
+      final fullSnippet = selectedText.trim();
+      final noteContent = userNote?.trim() ?? '';
+
+      final result = await notesController.addNote(
+        bookId: bookId,
+        note: noteContent,
+        snippet: fullSnippet,
+        bookTitle: book?.name ?? 'unknown_book'.tr,
+        bookAuthor: book?.authors.isNotEmpty == true
+            ? book!.authors.first.name
+            : 'unknown_author'.tr,
+      );
+
+      _closeDialog();
+
+      if (result['success'] == true) {
+        _showSuccessSnackbar('note_saved_message'.tr);
+      } else {
+        if (result['message']
+                ?.toString()
+                .toLowerCase()
+                .contains('authentication') ==
+            true) {
           authService.showLoginBottomSheet();
         } else {
           _showErrorSnackbar(
             'error'.tr,
-            'failed_to_save_note_try_again'.tr,
+            result['message'] ?? 'failed_to_save_note'.tr,
             Colors.red,
           );
         }
       }
-    });
-  }
+    } catch (e) {
+      _closeDialog();
 
-  String _getSnippet(String text, {int wordCount = 3}) {
-    final trimmed = text.trim();
-    final words = trimmed.split(RegExp(r'\s+'));
-
-    if (words.length <= wordCount) {
-      return trimmed;
+      if (authService.isAuthError(e)) {
+        authService.showLoginBottomSheet();
+      } else {
+        _showErrorSnackbar(
+          'error'.tr,
+          'failed_to_save_note_try_again'.tr,
+          Colors.red,
+        );
+      }
     }
-
-    return words.take(wordCount).join(' ');
   }
 
   void _showLoadingDialog() {
@@ -99,7 +95,9 @@ class EpubNoteHandler {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Get.theme.brightness == Brightness.dark ? Colors.grey[900] : Colors.white,
+              color: Get.theme.brightness == Brightness.dark
+                  ? Colors.grey[900]
+                  : Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Column(
@@ -128,9 +126,11 @@ class EpubNoteHandler {
 
   void _showErrorSnackbar(String title, String message, Color color) {
     if (color == Colors.orange) {
-      AppSnackbar.warning(message, title: title, duration: const Duration(seconds: 3));
+      AppSnackbar.warning(message,
+          title: title, duration: const Duration(seconds: 3));
     } else {
-      AppSnackbar.error(message, title: title, duration: const Duration(seconds: 3));
+      AppSnackbar.error(message,
+          title: title, duration: const Duration(seconds: 3));
     }
   }
 }

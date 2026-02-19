@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/data/network/network_manager.dart';
+import 'package:elkitap/data/network/token_managet.dart';
 import 'package:elkitap/modules/library/model/note_item_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:get/get.dart';
 
 class NotesController extends GetxController {
   final NetworkManager _networkManager = Get.find<NetworkManager>();
+  final TokenManager _tokenManager = Get.find<TokenManager>();
   var notes = <NoteItem>[].obs;
   var isSelectionMode = false.obs;
   var selectedNotes = <int>[].obs;
@@ -41,6 +43,16 @@ class NotesController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
 
+      // Check if user is authenticated
+      final token = _tokenManager.getToken();
+      if (token == null || token.isEmpty) {
+        print('⚠️ No token found, clearing notes');
+        notes.clear();
+        totalCount.value = 0;
+        isLoading.value = false;
+        return;
+      }
+
       final response = await _networkManager.get(
         '/users/notes',
         sendToken: true,
@@ -59,6 +71,7 @@ class NotesController extends GetxController {
       } else {
         errorMessage.value = response['error'] ?? 'failed_to_fetch_notes'.tr;
         notes.clear();
+        totalCount.value = 0;
       }
     } on SocketException {
       isLoading.value = false;

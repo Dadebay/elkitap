@@ -77,8 +77,7 @@ final class ApplicationInitialize {
       Get.put(EpubController(), permanent: true);
 
       // User session dependent controllers - NOT permanent, will be recreated on login
-      Get.put(AuthController(),
-          permanent: true); // Keep permanent for auth state
+      Get.put(AuthController(), permanent: true); // Keep permanent for auth state
       Get.put(AllGenresController());
       Get.put(AuthorController());
       Get.put(SearchResultsController());
@@ -97,8 +96,7 @@ final class ApplicationInitialize {
 
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-      await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform);
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
       // Initialize valid generic services
       final localNotificationsService = LocalNotificationsService.instance();
@@ -112,17 +110,28 @@ final class ApplicationInitialize {
     }
   }
 
-  static Future<void> _initNetworkServices(
-      LocalNotificationsService localNotificationsService) async {
+  static Future<void> _initNetworkServices(LocalNotificationsService localNotificationsService) async {
     try {
       final firebaseMessagingService = FirebaseMessagingService.instance();
-      await firebaseMessagingService.init(
-          localNotificationsService: localNotificationsService);
+      await firebaseMessagingService.init(localNotificationsService: localNotificationsService);
 
       // Initialize TimeHelper
       await TimeHelper.init();
 
       await FirebaseMessaging.instance.subscribeToTopic('EVENT');
+
+      // Get and print Firebase FCM token
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      debugPrint('🔥 Firebase FCM Token: $fcmToken');
+
+      // Get and print APNS token (iOS only)
+      final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+      debugPrint('🍎 APNS Token: $apnsToken');
+
+      // Listen for token refresh
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        debugPrint('🔄 Firebase Token Refreshed: $newToken');
+      });
     } catch (e) {
       debugPrint('Network service initialization failed (likely offline): $e');
     }

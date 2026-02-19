@@ -4,7 +4,7 @@ import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/widget/book_grid_cart.dart';
 import 'package:elkitap/modules/store/controllers/collections_controller.dart';
 
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -21,8 +21,7 @@ class CollectionBooksGridScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BookCollectionController collectionController =
-        Get.find<BookCollectionController>();
+    final BookCollectionController collectionController = Get.find<BookCollectionController>();
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -55,7 +54,7 @@ class CollectionBooksGridScreen extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
-              childAspectRatio: 0.65,
+              childAspectRatio: 0.60,
             ),
             itemBuilder: (context, index) {
               final book = collection.books[index];

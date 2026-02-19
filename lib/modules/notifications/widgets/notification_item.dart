@@ -1,7 +1,7 @@
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/modules/notifications/controllers/notification_controller.dart';
 import 'package:elkitap/modules/notifications/models/suggestion_model.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

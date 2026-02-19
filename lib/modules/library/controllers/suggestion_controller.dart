@@ -1,5 +1,6 @@
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/data/network/network_manager.dart';
+import 'package:elkitap/data/network/token_managet.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -22,6 +23,18 @@ class SuggestionController extends GetxController {
 
   Future<bool> submitSuggestion() async {
     if (!formKey.currentState!.validate()) return false;
+
+    // Check if user is logged in
+    final TokenManager tokenManager = Get.find<TokenManager>();
+    if (!tokenManager.isAuthenticated.value) {
+      Get.snackbar(
+        'loginRequired'.tr,
+        'loginRequiredDesc'.tr,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return false;
+    }
 
     isLoading.value = true;
     update();
@@ -48,9 +61,15 @@ class SuggestionController extends GetxController {
         _clearForm();
         return true;
       } else {
+        // Check if it's an authentication error (401 status or auth-related message)
+        final statusCode = response['statusCode'] ?? 0;
+        final errorMessage = response['error']?.toString().toLowerCase() ?? '';
+        final isAuthError =
+            statusCode == 401 || errorMessage.contains('unauthorized') || errorMessage.contains('authentication') || errorMessage.contains('unauthenticated') || errorMessage.contains('login');
+
         Get.snackbar(
-          'error'.tr,
-          response['message'] ?? 'unknown_error'.tr,
+          isAuthError ? 'loginRequired'.tr : 'error'.tr,
+          isAuthError ? 'loginRequiredDesc'.tr : (response['error'] ?? 'unknown_error'.tr),
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );

@@ -3,7 +3,7 @@ import 'package:elkitap/core/widgets/states/error_state_widget.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
 import 'package:elkitap/modules/genre/view/books_grid_screen_view.dart';
 import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
-import 'package:elkitap/modules/store/views/store_detail_view.dart';
+import 'package:elkitap/modules/store/views/book_detail_view.dart';
 import 'package:elkitap/modules/store/widgets/book_card_widget.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
 import 'package:flutter/material.dart';
@@ -34,15 +34,11 @@ class SubFeaturedBooksSection extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: () {
-                    Get.to(() => BooksGridScreen(
-                        title: "new_in_genre".tr, id: 0, recommended: true));
+                    Get.to(() => BooksGridScreen(title: "new_in_genre".tr, id: 0, recommended: true));
                   },
                   child: Text(
                     "new_in_genre".tr,
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontFamily: StringConstants.GilroyBold,
-                        fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontFamily: StringConstants.GilroyBold, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -75,8 +71,7 @@ class SubFeaturedBooksSection extends StatelessWidget {
                 itemCount: books.length > 10 ? 10 : books.length,
                 itemBuilder: (context, index) {
                   final book = books[index];
-                  final isLast =
-                      index == (books.length > 10 ? 9 : books.length - 1);
+                  final isLast = index == (books.length > 10 ? 9 : books.length - 1);
 
                   return TweenAnimationBuilder<double>(
                     duration: Duration(milliseconds: 300 + (index * 80)),
@@ -91,11 +86,7 @@ class SubFeaturedBooksSection extends StatelessWidget {
                       );
                     },
                     child: Padding(
-                      padding: EdgeInsets.only(
-                          right: isLast ? 0 : 32,
-                          bottom: 24,
-                          top: 24,
-                          left: index == 0 ? 10 : 0),
+                      padding: EdgeInsets.only(right: isLast ? 0 : 32, bottom: 24, top: 24, left: index == 0 ? 10 : 0),
                       child: BookCard(
                         index: index,
                         tabIndex: tabIndex,
