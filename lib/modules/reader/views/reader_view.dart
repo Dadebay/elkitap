@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_epub_viewer/flutter_epub_viewer.dart' as epub;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,6 +39,7 @@ class EpubReaderScreen extends StatefulWidget {
     required this.bookId,
     this.book,
     this.translateId,
+    this.localFilePath,
     super.key,
   });
 
@@ -49,6 +51,9 @@ class EpubReaderScreen extends StatefulWidget {
   final bool? isAddedToWantToRead;
   final bool? isMarkedAsFinished;
   final int? translateId;
+
+  /// When provided, skips network download and opens this decrypted local file directly.
+  final String? localFilePath;
 
   @override
   State<EpubReaderScreen> createState() => _EpubReaderScreenState();
@@ -104,19 +109,32 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   int _viewerCurrentPage = 1;
   int _viewerTotalPages = 1;
   int _liveTotalPages = 1;
+  int _stableTotalPages = 1;
 
   bool _isProgressLongPressed = false;
   double _tempSliderValue = 0.0;
   double _dragStartValue = 0.0;
   double _dragStartLocalX = 0.0;
-  double _lastProgressFactor = 0.0;
+  double? _pendingJumpProgressFactor;
+  double _lastRelocatedProgress = 0.0;
 
   Timer? _initialLoadingTimer;
+  Timer? _fontSizeDebounceTimer;
 
   String? _cachedLocations;
 
   bool _isRegeneratingLocations = false;
   bool _isRestoringProgress = false;
+  bool _isRetryingPageInfo = false;
+  bool _isBuildingChapterPages = false;
+  bool _useManualSwipeFallback = false;
+  bool _isVppLocked = false;
+  bool _isAwaitingFontVppRecalibration = false;
+  int _manualSwipeRequestId = 0;
+  DateTime? _vppPendingSince;
+  String? _lastLocationsFingerprint;
+  DateTime? _lastLocationsReceivedAt;
+  int _lastChapterBuildTotalPages = 0;
   double? _pendingRestoreProgress;
   Timer? _restoreRetryTimer;
   int _restoreRelocateLogCount = 0;
@@ -133,6 +151,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   @override
   void dispose() {
     _initialLoadingTimer?.cancel();
+    _fontSizeDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -262,23 +281,31 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       log('📚 READER INIT: Starting _initializeWithProgress');
       log('   Book ID: ${widget.bookId}');
       log('   uniqueBookId: $_uniqueBookId');
-      log('   Fetching book detail and progress in parallel...');
-
-      final bookDetailFuture = detailController.fetchBookDetail(int.parse(widget.bookId));
-      final progressFuture = detailController.fetchProgress();
       final initBookFuture = _initializeBook();
 
-      await Future.wait([
-        bookDetailFuture.catchError((e, st) {
-          log('⚠️ fetchBookDetail error (non-fatal): $e');
-        }),
-        progressFuture.catchError((e, st) {
-          log('⚠️ fetchProgress error (non-fatal): $e');
-        }),
-      ]);
-      log('   Book detail and progress fetched');
+      // Offline mode for downloaded books: skip network requests.
+      if (widget.localFilePath != null && widget.localFilePath!.isNotEmpty) {
+        log('   Offline local file mode detected, skipping detail/progress network fetch');
+        await initBookFuture;
+      } else {
+        log('   Fetching book detail and progress in parallel...');
 
-      await initBookFuture;
+        final bookDetailFuture = detailController.fetchBookDetail(int.parse(widget.bookId));
+        final progressFuture = detailController.fetchProgress();
+
+        await Future.wait([
+          bookDetailFuture.catchError((e, st) {
+            log('⚠️ fetchBookDetail error (non-fatal): $e');
+          }),
+          progressFuture.catchError((e, st) {
+            log('⚠️ fetchProgress error (non-fatal): $e');
+          }),
+        ]);
+        log('   Book detail and progress fetched');
+
+        await initBookFuture;
+      }
+
       log('   Book initialization completed');
     } catch (e, st) {
       log('❌ Error in _initializeWithProgress: $e');
@@ -298,7 +325,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
   double? _getAudioProgress() => getAudioProgress();
 
-  void _cacheTotalPages(int totalPages) => cacheTotalPages(totalPages);
+  void _cacheTotalPages(int totalPages) => cacheTotalPages(totalPages, fontSize: _fontSize);
 
   void _saveTextProgressToAudio(int currentPage, int totalPages) => saveTextProgressToAudio(currentPage, totalPages);
 
@@ -308,11 +335,40 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       return;
     }
 
+    if (_isBuildingChapterPages) {
+      log('⏭️ _buildChapterPages already running, skipping duplicate call');
+      return;
+    }
+
+    if (_viewerTotalPages > 1 && _lastChapterBuildTotalPages == _viewerTotalPages && _chapterPages.length == _chapters.length) {
+      log('⏭️ Chapter pages already built for totalPages=$_viewerTotalPages, skipping');
+      return;
+    }
+
+    _isBuildingChapterPages = true;
+
     try {
       log('🗺️ Building chapter-to-page mapping for ${_chapters.length} chapters...');
       final pageInfo = await _viewerController.getPageInfo();
       final totalPages = (pageInfo['totalPages'] as num?)?.toInt() ?? 1;
+      final vppReady = pageInfo['vppReady'] == true;
       log('📊 Total pages from pageInfo: $totalPages');
+
+      if (!vppReady) {
+        log('⏸️ Skip chapter mapping while VPP pending (totalPages=$totalPages)');
+        return;
+      }
+
+      if (mounted && totalPages > 10 && _viewerTotalPages <= 1) {
+        setState(() {
+          _viewerTotalPages = totalPages;
+          _liveTotalPages = totalPages;
+          _isLoadingPages = false;
+          _useManualSwipeFallback = true;
+        });
+        _markReaderReadyIfPossible();
+        log('⚡ Early unlock from chapter mapping: $totalPages pages');
+      }
 
       if (totalPages <= 10) {
         log('⏸️ Skipping chapter page mapping (totalPages=$totalPages too low)');
@@ -332,7 +388,6 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
         final page = chapter.startPage ?? (((i * totalPages) / _chapters.length).round() + 1).clamp(1, totalPages);
         newChapterPages[chapter.href] = page;
-        log('📖 ${chapter.title.trim().replaceAll(RegExp(r'\s+'), ' ')} → page $page (index $i/${_chapters.length})');
       }
 
       if (mounted) {
@@ -340,12 +395,16 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
           _chapterPages = newChapterPages;
         });
 
+        _lastChapterBuildTotalPages = totalPages;
+
         cacheChapterMapping(newChapterPages);
         log('✅ Chapter pages built and cached: ${_chapterPages.length} chapters mapped (will be refined during navigation)');
       }
     } catch (e, stackTrace) {
       log('❌ Error building chapter pages: $e');
       log('Stack trace: $stackTrace');
+    } finally {
+      _isBuildingChapterPages = false;
     }
   }
 
@@ -373,12 +432,73 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   Future<void> _updatePageInfo({bool skipProgressSave = false}) async {
     try {
       final pageInfo = await _viewerController.getPageInfo();
-      final currentPage = (pageInfo['currentPage'] as num?)?.toInt() ?? 1;
-      final totalPages = (pageInfo['totalPages'] as num?)?.toInt() ?? 1;
+      int currentPage = (pageInfo['currentPage'] as num?)?.toInt() ?? 1;
+      final rawTotalPages = (pageInfo['totalPages'] as num?)?.toInt() ?? 1;
       final vppReady = pageInfo['vppReady'] == true;
       final vppSampleCount = (pageInfo['vppSampleCount'] as num?)?.toInt() ?? 0;
 
+      log('🔬[PAGE_INFO:RAW] current=$currentPage rawTotal=$rawTotalPages vppReady=$vppReady samples=$vppSampleCount pendingJump=$_pendingJumpProgressFactor relocatedProgress=$_lastRelocatedProgress');
+
+      // Stabilize page count against common ±1 jitters from webview/VPP calibration.
+      int totalPages = rawTotalPages;
+
+      // Prefer cached (last locked) total while VPP is pending only if it's close to current estimate.
+      // If difference is large, cached value is likely stale for this layout/session.
+      final cachedTotalPages = getCachedTotalPages(fontSize: _fontSize);
+      if (!vppReady && !_isAwaitingFontVppRecalibration && cachedTotalPages != null && cachedTotalPages > 1 && rawTotalPages > 1) {
+        final relativeDiff = ((rawTotalPages - cachedTotalPages).abs()) / cachedTotalPages;
+        if (relativeDiff <= 0.15) {
+          totalPages = cachedTotalPages;
+          log('🧷 Using cached totalPages while VPP pending: raw=$rawTotalPages -> cached=$cachedTotalPages');
+        } else {
+          log('🧪 Ignoring stale cached totalPages while VPP pending: raw=$rawTotalPages, cached=$cachedTotalPages');
+        }
+      } else if (!vppReady && _isAwaitingFontVppRecalibration && cachedTotalPages != null && cachedTotalPages > 1) {
+        log('🔤 Font size changed: ignore cached totalPages=$cachedTotalPages until VPP locks');
+      }
+
+      if (rawTotalPages > 1) {
+        if (_stableTotalPages <= 1) {
+          _stableTotalPages = totalPages;
+        } else if (totalPages >= _stableTotalPages) {
+          _stableTotalPages = totalPages;
+        } else {
+          final isOnePageDrop = (_stableTotalPages - totalPages) == 1;
+          if (isOnePageDrop) {
+            totalPages = _stableTotalPages;
+            log('🧮 Stabilized totalPages jitter: raw=$totalPages -> stable=$_stableTotalPages');
+          } else {
+            // Accept meaningful decreases (e.g. real recalculation after settings change)
+            _stableTotalPages = totalPages;
+          }
+        }
+        totalPages = _stableTotalPages;
+      }
+
+      // While VPP is not locked, pageInfo.currentPage can jitter without real movement.
+      // Use relocated progress as source of truth to avoid fake increments from page 1.
+      if (!vppReady && totalPages > 1) {
+        final derivedFromProgress = ((_lastRelocatedProgress.clamp(0.0, 1.0)) * totalPages).floor() + 1;
+        final normalized = derivedFromProgress.clamp(1, totalPages);
+        if ((currentPage - normalized).abs() >= 1) {
+          log('🧮 Stabilized currentPage while VPP pending: raw=$currentPage -> progressBased=$normalized (p=${(_lastRelocatedProgress * 100).toStringAsFixed(2)}%)');
+          currentPage = normalized;
+        }
+      }
+
+      // Extra boundary clamp: prevent start/end off-by-one flicker only while VPP is pending.
+      // After VPP lock, rely on JS-calculated currentPage to avoid getting stuck at page 1.
+      if (!vppReady) {
+        if (_lastRelocatedProgress <= 0.0005 && currentPage > 1) {
+          currentPage = 1;
+        } else if (_lastRelocatedProgress >= 0.9995 && totalPages > 1 && currentPage < totalPages) {
+          currentPage = totalPages;
+        }
+      }
+
       _liveTotalPages = totalPages;
+
+      log('🔬[PAGE_INFO:NORMALIZED] current=$currentPage total=$totalPages live=$_liveTotalPages viewer=$_viewerCurrentPage/$_viewerTotalPages pendingJump=$_pendingJumpProgressFactor');
 
       // Enhanced page info logging
       log('╔═══════════════════════════════════════════════════════════╗');
@@ -392,12 +512,35 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       log('╚═══════════════════════════════════════════════════════════╝');
 
       if (mounted) {
+        final int? pendingJumpTargetPage =
+            (_pendingJumpProgressFactor != null && totalPages > 1) ? ((_pendingJumpProgressFactor!.clamp(0.0, 1.0) * (totalPages - 1)) + 1).round().clamp(1, totalPages) : null;
+
+        log('🔬[PENDING:EVAL] pending=$_pendingJumpProgressFactor -> targetPage=$pendingJumpTargetPage | incomingCurrent=$currentPage total=$totalPages');
+
         setState(() {
           _viewerCurrentPage = currentPage;
+          _isVppLocked = vppReady;
+
+          if (pendingJumpTargetPage != null && (currentPage - pendingJumpTargetPage).abs() <= 1) {
+            log('🔬[PENDING:CLEAR] currentPage=$currentPage targetPage=$pendingJumpTargetPage diff=${(currentPage - pendingJumpTargetPage).abs()} -> clearing pending jump');
+            _pendingJumpProgressFactor = null;
+          } else if (pendingJumpTargetPage != null) {
+            log('🔬[PENDING:KEEP] currentPage=$currentPage targetPage=$pendingJumpTargetPage diff=${(currentPage - pendingJumpTargetPage).abs()} -> keep pending jump');
+          }
+
+          if (vppReady) {
+            _vppPendingSince = null;
+            _isAwaitingFontVppRecalibration = false;
+          }
 
           // Only show page count and dismiss loading when VPP is locked
           if (totalPages > 1 && vppReady) {
             _viewerTotalPages = totalPages;
+            if (_useManualSwipeFallback) {
+              _useManualSwipeFallback = false;
+              _manualSwipeRequestId++; // invalidate any pending delayed fallback callbacks
+              log('✅ VPP locked - disabling manual swipe fallback');
+            }
 
             if (_isLoadingPages) {
               _isLoadingPages = false;
@@ -405,7 +548,21 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
               log('✅ VPP locked - final page count: $totalPages pages');
             }
           } else if (totalPages > 1 && !vppReady) {
-            log('⏳ VPP calibrating (samples=$vppSampleCount) - keeping loading spinner visible...');
+            _vppPendingSince ??= DateTime.now();
+
+            // Fast fallback: don't block reader for long VPP calibration.
+            final pendingMs = DateTime.now().difference(_vppPendingSince!).inMilliseconds;
+            if (_viewerTotalPages <= 1 && pendingMs >= 1800) {
+              _viewerTotalPages = totalPages;
+              // Keep _isLoadingPages = true to show loading indicator in page counter during VPP calibration
+              _useManualSwipeFallback = true;
+              _markReaderReadyIfPossible();
+              log('⚡ Forced fallback after ${pendingMs}ms VPP pending. Using live pages: $totalPages');
+            }
+
+            if (_isLoadingPages) {
+              log('⏳ VPP calibrating (samples=$vppSampleCount) - keeping loading spinner visible...');
+            }
           }
         });
       }
@@ -439,29 +596,60 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   }
 
   Future<void> _retryPageInfoUntilValid() async {
+    if (_isRetryingPageInfo) {
+      log('⏭️ _retryPageInfoUntilValid already running, skipping duplicate call');
+      return;
+    }
+
+    _isRetryingPageInfo = true;
     int retries = 0;
+    int stalledVppRetries = 0;
     const maxRetries = 10;
     const retryDelay = Duration(milliseconds: 300);
 
-    while (retries < maxRetries && mounted) {
-      await Future.delayed(retryDelay);
-      retries++;
-      log('🔄 Retry #$retries: Fetching page info...');
+    try {
+      while (retries < maxRetries && mounted) {
+        await Future.delayed(retryDelay);
+        retries++;
+        log('🔄 Retry #$retries: Fetching page info...');
 
-      await _updatePageInfo(skipProgressSave: true);
+        await _updatePageInfo(skipProgressSave: true);
 
-      if (_viewerTotalPages > 10) {
-        log('✅ Valid total pages found: $_viewerTotalPages');
-
-        if (_chapters.isNotEmpty) {
-          await _buildChapterPages();
+        if (_viewerTotalPages > 10) {
+          log('✅ Valid total pages found: $_viewerTotalPages');
+          if (_chapters.isNotEmpty) {
+            await _buildChapterPages();
+          }
+          break;
         }
-        break;
-      }
-    }
 
-    if (_viewerTotalPages <= 1 && retries >= maxRetries) {
-      log('⚠️ Page info retries exhausted (liveTotal=$_liveTotalPages)');
+        if (_liveTotalPages > 10 && _viewerTotalPages <= 1) {
+          stalledVppRetries++;
+          if (stalledVppRetries >= 4) {
+            if (mounted) {
+              setState(() {
+                _viewerTotalPages = _liveTotalPages;
+                // Keep _isLoadingPages = true to show loading indicator during VPP calibration
+                _useManualSwipeFallback = true;
+              });
+            }
+
+            _markReaderReadyIfPossible();
+            log('⚠️ VPP lock delayed. Fallback enabled with live pages: $_liveTotalPages');
+
+            if (_chapters.isNotEmpty) {
+              await _buildChapterPages();
+            }
+            break;
+          }
+        }
+      }
+
+      if (_viewerTotalPages <= 1 && retries >= maxRetries) {
+        log('⚠️ Page info retries exhausted (liveTotal=$_liveTotalPages)');
+      }
+    } finally {
+      _isRetryingPageInfo = false;
     }
   }
 
@@ -538,7 +726,12 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
         setState(() => _downloadProgress = 0.10);
       }
 
-      if (widget.epubPath != null && widget.epubPath!.isNotEmpty) {
+      // If a pre-decrypted local file is provided, open it directly (downloaded book)
+      if (widget.localFilePath != null && widget.localFilePath!.isNotEmpty) {
+        log('📦 Opening pre-decrypted local file: ${widget.localFilePath}');
+        setState(() => _downloadProgress = 0.90);
+        _showReader(widget.localFilePath!);
+      } else if (widget.epubPath != null && widget.epubPath!.isNotEmpty) {
         await _downloadAndOpenBook();
       } else {
         await _openAssetBook();
@@ -679,6 +872,14 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       _epubViewerKey = UniqueKey();
       _epubSource = epub.EpubSource.fromFile(File(filePath));
       _isReaderReady = false;
+      _hasAppliedAudioProgress = false; // Reset to allow audio progress restoration on reopen
+      _pendingJumpProgressFactor = null;
+      _useManualSwipeFallback = false;
+      _isVppLocked = false;
+      _isAwaitingFontVppRecalibration = false;
+      _stableTotalPages = 1;
+      _lastChapterBuildTotalPages = 0;
+      _vppPendingSince = null;
       _downloadProgress = 0.90;
     });
   }
@@ -721,6 +922,23 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       backgroundColor: Colors.red,
       colorText: Colors.white,
       duration: const Duration(seconds: 4),
+    );
+  }
+
+  Widget _buildReaderCoverImage() {
+    final imageUrl = widget.imageUrl.trim();
+
+    if (imageUrl.isEmpty) {
+      return Image.asset('assets/images/l1.png', width: 220, height: 330, fit: BoxFit.cover);
+    }
+
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: 220,
+      height: 330,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Image.asset('assets/images/l1.png', width: 220, height: 330, fit: BoxFit.cover),
+      errorWidget: (context, url, error) => Image.asset('assets/images/l1.png', width: 220, height: 330, fit: BoxFit.cover),
     );
   }
 
@@ -788,12 +1006,22 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     setState(() {
       _fontSize = size;
       _isRegeneratingLocations = true;
+      _isAwaitingFontVppRecalibration = true;
       _isLoadingPages = true;
       // Reset total pages to show loading spinner until VPP recalibrates
       _viewerTotalPages = 1;
       _liveTotalPages = 1;
+      _stableTotalPages = 1;
+      _lastChapterBuildTotalPages = 0;
+      _vppPendingSince = null;
     });
-    _viewerController.setFontSize(fontSize: size.toDouble());
+
+    _fontSizeDebounceTimer?.cancel();
+    _fontSizeDebounceTimer = Timer(const Duration(milliseconds: 220), () {
+      if (!mounted) return;
+      log('📤 Applying debounced font size: $_fontSize');
+      _viewerController.setFontSize(fontSize: _fontSize.toDouble());
+    });
   }
 
   void _handleShare(String text) async {
@@ -814,23 +1042,62 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     }
   }
 
+  void _triggerManualPageTurn({required bool toNext}) {
+    if (_isVppLocked || !_useManualSwipeFallback) {
+      log('⏭️ Manual swipe fallback aborted (VPP locked or fallback disabled)');
+      return;
+    }
+
+    final requestId = ++_manualSwipeRequestId;
+    final startPage = _viewerCurrentPage;
+
+    if (toNext) {
+      _viewerController.next();
+      log('➡️ Manual swipe fallback: next page (step 1)');
+    } else {
+      _viewerController.prev();
+      log('⬅️ Manual swipe fallback: previous page (step 1)');
+    }
+
+    Future.delayed(const Duration(milliseconds: 240), () {
+      if (!mounted || requestId != _manualSwipeRequestId) return;
+      if (_isVppLocked || !_useManualSwipeFallback) return;
+
+      // First command already worked.
+      if (_viewerCurrentPage != startPage) return;
+
+      // Second-stage nudge by progress to recover stuck pages on some WebView/offline states.
+      if (_viewerTotalPages <= 1) return;
+
+      final step = 1 / (_viewerTotalPages - 1);
+      final currentProgress = (_viewerCurrentPage - 1) / (_viewerTotalPages - 1);
+      final nudgedProgress = toNext ? (currentProgress + step).clamp(0.0, 1.0) : (currentProgress - step).clamp(0.0, 1.0);
+
+      _viewerController.toProgressPercentage(nudgedProgress);
+      log('↪️ Manual swipe fallback: progress nudge (step 2) -> ${(nudgedProgress * 100).toStringAsFixed(2)}%');
+    });
+  }
+
   Future<void> _jumpToPage(int page) async {
-    if (_viewerTotalPages <= 1) return;
+    final effectiveTotalPages = _viewerTotalPages > 1 ? _viewerTotalPages : _liveTotalPages;
+    if (effectiveTotalPages <= 1) {
+      log('🔬[JUMP:SKIP] effectiveTotalPages=$effectiveTotalPages page=$page pending=$_pendingJumpProgressFactor');
+      return;
+    }
 
-    final targetPage = page.clamp(1, _viewerTotalPages);
+    final targetPage = page.clamp(1, effectiveTotalPages);
 
-    final progressPercent = (_viewerTotalPages > 1) ? (targetPage - 1) / (_viewerTotalPages - 1) : 0.0;
+    final progressPercent = (effectiveTotalPages > 1) ? (targetPage - 1) / (effectiveTotalPages - 1) : 0.0;
 
     log('📌 Jumping to page $targetPage (progress: $progressPercent)');
-
-    setState(() {
-      _viewerCurrentPage = targetPage;
-    });
+    log('🔬[JUMP:CALL] requested=$page target=$targetPage effectiveTotal=$effectiveTotalPages viewer=$_viewerCurrentPage/$_viewerTotalPages live=$_liveTotalPages pending=$_pendingJumpProgressFactor');
 
     try {
       await _viewerController.toProgressPercentage(progressPercent);
+      log('🔬[JUMP:DONE] target=$targetPage progress=$progressPercent pending=$_pendingJumpProgressFactor');
     } catch (e) {
       log('❌ Error jumping to page $targetPage: $e');
+      log('🔬[JUMP:ERROR] target=$targetPage pending=$_pendingJumpProgressFactor error=$e');
     }
   }
 
@@ -1032,7 +1299,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
         return false;
       },
       child: Scaffold(
-        backgroundColor: _currentTheme.backgroundColor,
+        // backgroundColor: _currentTheme.backgroundColor,
         resizeToAvoidBottomInset: false,
         body: Stack(
           children: [
@@ -1040,9 +1307,9 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
               child: Container(
                 padding: EdgeInsets.only(
                   top: MediaQuery.of(context).viewPadding.top + 40,
-                  bottom: MediaQuery.of(context).viewPadding.bottom + 30,
+                  bottom: 20,
                 ),
-                color: _currentTheme.backgroundColor,
+                decoration: _currentTheme.epubTheme.backgroundDecoration,
                 child: epub.EpubViewer(
                   key: _epubViewerKey,
                   epubController: _viewerController,
@@ -1056,18 +1323,30 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
                   suppressNativeContextMenu: true,
                   cachedLocations: _cachedLocations,
                   onLocationsCached: (locationsJson) async {
+                    final fingerprint = '$_fontSize:${locationsJson.length}:${locationsJson.hashCode}';
+                    final now = DateTime.now();
+                    final duplicate = _lastLocationsFingerprint == fingerprint && _lastLocationsReceivedAt != null && now.difference(_lastLocationsReceivedAt!).inMilliseconds < 1500;
+
+                    if (duplicate) {
+                      log('⏭️ Ignoring duplicate locationsSaved callback (fontSize=$_fontSize)');
+                      return;
+                    }
+
+                    _lastLocationsFingerprint = fingerprint;
+                    _lastLocationsReceivedAt = now;
+
                     log('💾 Received locations from epub.js (${locationsJson.length} chars) — caching for next open');
                     cacheLocationsData(locationsJson, fontSize: _fontSize);
                     _cachedLocations = locationsJson;
 
+                    // Update page info first to unlock UI as soon as possible.
+                    await _updatePageInfo(skipProgressSave: true);
+
                     // Rebuild chapter page mapping when locations change
                     // (e.g., after font size change triggers re-generation)
                     if (_chapters.isNotEmpty) {
-                      await _buildChapterPages();
+                      unawaited(_buildChapterPages());
                     }
-
-                    // Update page info with new locations (especially after font size change)
-                    await _updatePageInfo(skipProgressSave: false);
 
                     // Hide loading overlay after locations regeneration completes
                     if (mounted && _isRegeneratingLocations) {
@@ -1090,6 +1369,9 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
                   },
                   onRelocated: (location) {
                     log('📍 Relocated: progress=${(location.progress * 100).toStringAsFixed(1)}% | Page: $_viewerCurrentPage/$_viewerTotalPages | FontSize: $_fontSize');
+                    log('🔬[RELOCATED] progress=${location.progress} href=${location.href} cfi=${location.startCfi} pendingJump=$_pendingJumpProgressFactor viewerBefore=$_viewerCurrentPage/$_viewerTotalPages');
+
+                    _lastRelocatedProgress = location.progress;
 
                     setState(() {
                       _currentCfi = location.startCfi;
@@ -1132,6 +1414,21 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
                     log('📍 Location loaded (page counts available)');
                     log('   Current state: totalPages=$_viewerTotalPages, currentPage=$_viewerCurrentPage');
                     log('   hasAppliedAudioProgress: $_hasAppliedAudioProgress');
+
+                    Future.delayed(const Duration(milliseconds: 2200), () {
+                      if (!mounted || _isReaderReady) return;
+                      setState(() {
+                        _isReaderReady = true;
+                        // Only hide loading if VPP is locked; otherwise keep showing in page counter
+                        if (_isVppLocked) {
+                          _isLoadingPages = false;
+                        }
+                        if (!_isVppLocked) {
+                          _useManualSwipeFallback = true;
+                        }
+                      });
+                      log('⚡ Soft unlock after location load timeout (waiting for VPP/page info)');
+                    });
 
                     _updatePageInfo(skipProgressSave: true);
                     log('   After _updatePageInfo: totalPages=$_viewerTotalPages, currentPage=$_viewerCurrentPage');
@@ -1187,6 +1484,26 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
                         log('🎛️ showControls toggled -> now: $_showControls');
                       });
                     } else {
+                      final isHorizontalSwipe = dx >= 0.18 && dy <= 0.12 && dt > 0 && dt <= 900;
+                      if (_useManualSwipeFallback && !_isVppLocked && !_isProgressLongPressed && !_isLoadingPages && isHorizontalSwipe && _viewerTotalPages > 1) {
+                        final pageBefore = _viewerCurrentPage;
+                        final swipeToNext = x < _touchDownX;
+                        final requestId = ++_manualSwipeRequestId;
+
+                        Future.delayed(const Duration(milliseconds: 140), () {
+                          if (!mounted || requestId != _manualSwipeRequestId) return;
+                          if (_isVppLocked || !_useManualSwipeFallback) return;
+
+                          // If page already changed, JS swipe succeeded; don't apply manual fallback.
+                          if (_viewerCurrentPage != pageBefore) {
+                            log('⏭️ Manual swipe fallback skipped (JS already moved page $pageBefore -> $_viewerCurrentPage)');
+                            return;
+                          }
+
+                          _triggerManualPageTurn(toNext: swipeToNext);
+                        });
+                        return;
+                      }
                       log('🎛️ skip toggle (longPressed=$_isProgressLongPressed, isTapLike=$isTapLike)');
                     }
                   },
@@ -1220,35 +1537,58 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
               context: context,
               isProgressLongPressed: _isProgressLongPressed,
               tempSliderValue: _tempSliderValue,
-              lastProgressFactor: _lastProgressFactor,
+              pendingJumpProgressFactor: _pendingJumpProgressFactor,
               isRegeneratingLocations: _isRegeneratingLocations,
               onHorizontalDragStart: (details) {
                 _dragStartLocalX = details.localPosition.dx;
                 final currentNormalized = _viewerTotalPages > 1 ? (_viewerCurrentPage - 1) / (_viewerTotalPages - 1) : 0.0;
+                log('🔬[SLIDER:START] localX=${details.localPosition.dx} currentPage=$_viewerCurrentPage total=$_viewerTotalPages live=$_liveTotalPages normalized=$currentNormalized pendingBefore=$_pendingJumpProgressFactor');
                 setState(() {
                   _isProgressLongPressed = true;
+                  _pendingJumpProgressFactor = null;
                   _dragStartValue = currentNormalized.clamp(0.0, 1.0);
                   _tempSliderValue = _dragStartValue;
                 });
+                log('🔬[SLIDER:START:STATE] dragStart=$_dragStartValue temp=$_tempSliderValue pending=$_pendingJumpProgressFactor longPressed=$_isProgressLongPressed');
               },
               onHorizontalDragUpdate: (details) {
                 final RenderBox box = context.findRenderObject() as RenderBox;
                 final localX = details.localPosition.dx;
                 final delta = (localX - _dragStartLocalX) / box.size.width;
                 final percentage = (_dragStartValue + delta).clamp(0.0, 1.0);
+                final debugPage = _viewerTotalPages > 1 ? (percentage * (_viewerTotalPages - 1) + 1).round().clamp(1, _viewerTotalPages) : 1;
+                log('🔬[SLIDER:UPDATE] localX=$localX delta=$delta dragStart=$_dragStartValue -> percentage=$percentage page=$debugPage viewer=$_viewerCurrentPage/$_viewerTotalPages pending=$_pendingJumpProgressFactor');
                 setState(() {
                   _tempSliderValue = percentage;
                 });
               },
               onHorizontalDragEnd: (details) {
-                final targetPage = (_tempSliderValue * _viewerTotalPages).round().clamp(1, _viewerTotalPages);
-                if (targetPage != _viewerCurrentPage) {
-                  _jumpToPage(targetPage);
+                final effectiveTotalPages = _viewerTotalPages > 1 ? _viewerTotalPages : _liveTotalPages;
+                final draggedProgress = _tempSliderValue.clamp(0.0, 1.0);
+                log('🔬[SLIDER:END] draggedProgress=$draggedProgress effectiveTotal=$effectiveTotalPages viewerBefore=$_viewerCurrentPage/$_viewerTotalPages live=$_liveTotalPages');
+                int? optimisticTargetPage;
+                if (effectiveTotalPages > 1) {
+                  // Use same formula as _jumpToPage: page = progress * (total-1) + 1
+                  final targetPage = (draggedProgress * (effectiveTotalPages - 1) + 1).round().clamp(1, effectiveTotalPages);
+                  optimisticTargetPage = targetPage;
+                  log('🔬[SLIDER:END:TARGET] targetPage=$targetPage currentPage=$_viewerCurrentPage willJump=${targetPage != _viewerCurrentPage}');
+                  if (targetPage != _viewerCurrentPage) {
+                    _pendingJumpProgressFactor = draggedProgress;
+                    log('🔬[SLIDER:END:PENDING_SET] pending=$_pendingJumpProgressFactor -> jumpTo=$targetPage');
+                    _jumpToPage(targetPage);
+                  } else {
+                    _pendingJumpProgressFactor = null;
+                    log('🔬[SLIDER:END:PENDING_CLEAR] same page selected, cleared pending');
+                  }
                 }
                 setState(() {
                   _isProgressLongPressed = false;
-                  _lastProgressFactor = _viewerTotalPages > 0 ? targetPage / _viewerTotalPages : 0.0;
+                  if (optimisticTargetPage != null && optimisticTargetPage != _viewerCurrentPage) {
+                    _viewerCurrentPage = optimisticTargetPage;
+                    log('🔬[SLIDER:END:OPTIMISTIC_PAGE] viewerCurrentPage -> $_viewerCurrentPage');
+                  }
                 });
+                log('🔬[SLIDER:END:STATE] longPressed=$_isProgressLongPressed pending=$_pendingJumpProgressFactor temp=$_tempSliderValue');
               },
             ),
             if (!_showControls && !_isLoadingPages)
@@ -1291,7 +1631,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.network(widget.imageUrl, width: 220, height: 330, fit: BoxFit.cover),
+                      _buildReaderCoverImage(),
                       const SizedBox(height: 80),
                       Image.asset('assets/images/l1.png', width: 60, height: 30, fit: BoxFit.cover),
                       const SizedBox(height: 20),
@@ -1399,8 +1739,8 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       value: SystemUiOverlayStyle(
         statusBarColor: _currentTheme.backgroundColor,
         statusBarIconBrightness: _currentTheme.isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: _currentTheme.backgroundColor,
-        systemNavigationBarIconBrightness: _currentTheme.isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: _epubSource == null
           ? _buildLoadingView()
@@ -1408,6 +1748,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
               children: [
                 _buildReaderView(),
                 if (!_isReaderReady) _buildLoadingOverlay(),
+                // VPP calibration indicator now shown in bottom page counter instead of overlay dialog
               ],
             ),
     );

@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:elkitap/core/constants/string_constants.dart';
@@ -73,6 +74,51 @@ class _ReadDownloadButtonState extends State<ReadDownloadButton> {
     log('========================');
 
     if (bookKey != null && bookKey.isNotEmpty && translate != null) {
+      // Check if this translation is already downloaded — open it offline in the same reader
+      final downloadController = Get.find<DownloadController>();
+      final downloadBookId = '${bookId}_t${translate.id}';
+      final downloadedTextBook = downloadController.downloadedBooks.firstWhereOrNull((b) => b.id == downloadBookId && !b.isAudio);
+
+      if (downloadedTextBook != null) {
+        log('📦 Downloaded copy found — opening offline in EpubReaderScreen');
+        try {
+          final tempPath = await downloadController.openEncryptedBook(downloadedTextBook);
+          if (tempPath == null) throw Exception('Failed to decrypt book');
+          final file = File(tempPath);
+          if (!await file.exists()) throw Exception('Decrypted file not found');
+          await Future.delayed(const Duration(milliseconds: 100));
+          if (!mounted) return;
+
+          final book = Book(
+            id: widget.book.id,
+            name: widget.book.name,
+            image: widget.book.image ?? widget.book.translates.firstOrNull?.image,
+            age: widget.book.age,
+            year: widget.book.year,
+            likedBookId: widget.book.likedBookId,
+            authors: widget.book.authors.map((author) => BookAuthor(id: author.id, name: author.name, image: author.image)).toList(),
+          );
+
+          await Get.to(() => EpubReaderScreen(
+                imageUrl: imageUrl,
+                epubPath: bookKey,
+                bookDescription: translate.description ?? '',
+                bookId: bookId,
+                isAddedToWantToRead: widget.controller.isAddedToWantToRead.value,
+                isMarkedAsFinished: widget.controller.isMarkedAsFinished.value,
+                book: book,
+                translateId: translate.id,
+                localFilePath: tempPath,
+              ));
+
+          await widget.controller.fetchProgress();
+          await widget.controller.refreshBookDetail();
+        } catch (e) {
+          AppSnackbar.error('Failed to open downloaded book: $e', duration: const Duration(seconds: 4));
+        }
+        return;
+      }
+
       final book = Book(
         id: widget.book.id,
         name: widget.book.name,
@@ -424,6 +470,8 @@ class _ReadDownloadButtonState extends State<ReadDownloadButton> {
                             ),
                             child: Text(
                               'viewDownloads'.tr,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontFamily: StringConstants.SFPro,
                                 fontSize: 16,

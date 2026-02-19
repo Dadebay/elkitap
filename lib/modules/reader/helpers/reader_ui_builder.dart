@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:elkitap/modules/reader/models/reader_theme_model.dart';
 
 /// UI builder helper for reader overlays and controls
@@ -149,7 +148,7 @@ class ReaderUIBuilder {
     required BuildContext context,
     required bool isProgressLongPressed,
     required double tempSliderValue,
-    required double lastProgressFactor,
+    required double? pendingJumpProgressFactor,
     required Function(DragStartDetails) onHorizontalDragStart,
     required Function(DragUpdateDetails) onHorizontalDragUpdate,
     required Function(DragEndDetails) onHorizontalDragEnd,
@@ -236,10 +235,9 @@ class ReaderUIBuilder {
                                     // Progress bar background
                                     Positioned.fill(
                                       child: TweenAnimationBuilder<double>(
-                                        duration: const Duration(milliseconds: 200),
+                                        duration: const Duration(milliseconds: 300),
                                         tween: Tween<double>(
-                                          begin: lastProgressFactor,
-                                          end: totalPages > 0 ? (isProgressLongPressed ? (tempSliderValue * totalPages).round().clamp(1, totalPages) : currentPage) / totalPages : 0.0,
+                                          end: totalPages > 1 ? (isProgressLongPressed ? tempSliderValue : (pendingJumpProgressFactor ?? ((currentPage - 1) / (totalPages - 1)))).clamp(0.0, 1.0) : 0.0,
                                         ),
                                         builder: (context, value, child) {
                                           return ClipRRect(
@@ -260,7 +258,7 @@ class ReaderUIBuilder {
                                       TextSpan(
                                         children: [
                                           TextSpan(
-                                            text: isProgressLongPressed ? '${(tempSliderValue * totalPages).round().clamp(1, totalPages)}' : '$currentPage',
+                                            text: isProgressLongPressed ? '${totalPages > 1 ? (tempSliderValue * (totalPages - 1) + 1).round().clamp(1, totalPages) : 1}' : '$currentPage',
                                             style: TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w600,
@@ -322,7 +320,7 @@ class ReaderUIBuilder {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
-      bottom: showControls ? -100 : 0,
+      bottom: showControls ? -100 : 10,
       left: 0,
       right: 0,
       child: AnimatedOpacity(
@@ -364,7 +362,7 @@ class ReaderUIBuilder {
     // Show only during long press
     if (!isProgressLongPressed) return const SizedBox.shrink();
 
-    final displayPage = (tempSliderValue * totalPages).round().clamp(1, totalPages);
+    final displayPage = totalPages > 1 ? (tempSliderValue * (totalPages - 1) + 1).round().clamp(1, totalPages) : 1;
 
     // Find the chapter for the display page using chapterPages map
     String displayChapterTitle = chapterTitle;

@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:elkitap/modules/reader/models/reader_theme_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_epub_viewer/flutter_epub_viewer.dart';
@@ -559,19 +560,17 @@ class _CoverImage extends StatelessWidget {
             color: placeholderColor,
           ),
           clipBehavior: Clip.hardEdge,
-          child: Image.network(
-            coverBase64!,
+          child: CachedNetworkImage(
+            imageUrl: coverBase64!,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
+            errorWidget: (context, url, error) {
               return const Center(child: Icon(Icons.broken_image, color: Colors.white));
             },
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Center(
+            placeholder: (context, url) {
+              return const Center(
                 child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! : null,
                   strokeWidth: 2,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               );
             },

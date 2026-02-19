@@ -36,18 +36,14 @@ class GlobalSafeAreaWrapper extends StatelessWidget {
 
   SystemUiOverlayStyle getSystemUiOverlayStyle(BuildContext context) {
     final scaffoldBackgroundColor = Theme.of(context).scaffoldBackgroundColor;
-    final brightness =
-        ThemeData.estimateBrightnessForColor(scaffoldBackgroundColor);
+    final brightness = ThemeData.estimateBrightnessForColor(scaffoldBackgroundColor);
 
     return SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness:
-          brightness == Brightness.dark ? Brightness.light : Brightness.dark,
-      statusBarBrightness:
-          brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+      statusBarColor: Colors.black,
+      statusBarIconBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
       systemNavigationBarColor: scaffoldBackgroundColor,
-      systemNavigationBarIconBrightness:
-          brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+      systemNavigationBarIconBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
       systemNavigationBarContrastEnforced: false,
     );
   }

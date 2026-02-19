@@ -9,10 +9,11 @@ import 'package:elkitap/modules/audio_player/views/audio_player_view.dart';
 import 'package:elkitap/modules/library/controllers/downloaded_controller.dart';
 import 'package:elkitap/modules/library/model/book_download_model.dart';
 import 'package:elkitap/modules/reader/controllers/reader_controller.dart';
+import 'package:elkitap/modules/reader/views/reader_view.dart';
+import 'package:elkitap/modules/store/model/book_item_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
-import 'package:elkitap/modules/reader/views/downloaded_reader_view.dart';
 import 'package:iconly/iconly.dart';
 
 class DownloadedBookDetailView extends StatefulWidget {
@@ -78,9 +79,28 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
 
       if (!mounted) return;
 
-      await Get.to(() => DownloadedEpubReaderScreen(
-            bookDownload: textBook!,
-            decryptedFilePath: tempPath,
+      final rawId = textBook!.id;
+      final split = rawId.split('_t');
+      final baseBookId = split.first;
+      final parsedTranslateId = split.length > 1 ? int.tryParse(split.last) : null;
+
+      final parsedBookId = int.tryParse(baseBookId) ?? int.tryParse(widget.bookId) ?? 0;
+      final parsedAuthor = textBook!.author.trim().isEmpty ? 'Unknown' : textBook!.author;
+
+      final book = Book(
+        id: parsedBookId,
+        name: textBook!.title,
+        image: textBook!.coverUrl,
+        authors: [BookAuthor(id: 0, name: parsedAuthor)],
+      );
+
+      await Get.to(() => EpubReaderScreen(
+            imageUrl: textBook!.coverUrl ?? '',
+            bookDescription: '',
+            bookId: parsedBookId.toString(),
+            book: book,
+            translateId: parsedTranslateId,
+            localFilePath: tempPath,
           ));
     } catch (e) {
       AppSnackbar.error('Failed to open book: $e', duration: const Duration(seconds: 4));

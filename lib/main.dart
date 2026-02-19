@@ -8,7 +8,7 @@ import 'package:elkitap/core/init/translation_service.dart';
 import 'package:elkitap/core/theme/custom_dark_theme.dart';
 import 'package:elkitap/core/theme/custom_light_theme.dart';
 import 'package:elkitap/core/widgets/navigation/bottom_nav_bar.dart';
-import 'package:elkitap/core/widgets/common/global_safe_are.dart';
+import 'package:elkitap/global_widgets/global_safe_area.dart';
 
 // Modules
 import 'package:elkitap/modules/audio_player/controllers/audio_player_controller.dart';

@@ -8,7 +8,6 @@ export 'navigation/custom_tabbar.dart';
 // Common widgets
 export 'common/custom_icon.dart';
 export 'common/language_selector.dart';
-export 'common/global_safe_are.dart';
 export 'common/restart_widget.dart';
 export 'common/app_snackbar.dart';
 

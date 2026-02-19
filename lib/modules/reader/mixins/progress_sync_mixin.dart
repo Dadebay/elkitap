@@ -40,25 +40,35 @@ mixin ProgressSyncMixin {
     }
   }
 
-  /// Get cached total pages from storage
-  int? getCachedTotalPages() {
+  /// Get cached total pages from storage (font-size specific when provided)
+  int? getCachedTotalPages({int? fontSize}) {
     try {
-      final key = '$_totalPagesKey$uniqueBookId';
-      return _storage.read<int>(key);
+      if (fontSize != null) {
+        final fontKey = '${_totalPagesKey}${uniqueBookId}_fs$fontSize';
+        final fontValue = _storage.read<int>(fontKey);
+        if (fontValue != null) return fontValue;
+      }
+
+      // Backward-compatible fallback (old key without font size)
+      final legacyKey = '$_totalPagesKey$uniqueBookId';
+      return _storage.read<int>(legacyKey);
     } catch (e) {
       return null;
     }
   }
 
-  /// Cache total pages for future sync
-  void cacheTotalPages(int totalPages) {
+  /// Cache total pages for future sync (font-size specific when provided)
+  void cacheTotalPages(int totalPages, {int? fontSize}) {
     try {
-      final key = '$_totalPagesKey$uniqueBookId';
+      final key = fontSize != null ? '${_totalPagesKey}${uniqueBookId}_fs$fontSize' : '$_totalPagesKey$uniqueBookId';
       _storage.write(key, totalPages);
       log('┌─────────────────────────────────────────────────────────┐');
       log('│ 💾 CACHED TOTAL PAGES                                   │');
       log('├─────────────────────────────────────────────────────────┤');
       log('│ Total Pages: $totalPages                                │');
+      if (fontSize != null) {
+        log('│ Font Size:   $fontSize                                  │');
+      }
       log('│ Book ID:     $uniqueBookId                              │');
       log('└─────────────────────────────────────────────────────────┘');
     } catch (e) {
