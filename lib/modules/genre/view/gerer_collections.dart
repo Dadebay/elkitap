@@ -86,6 +86,10 @@ class _GenreBookSectionState extends State<GenreBookSection> {
       tag: 'genre_${widget.genre.id}',
     );
 
+    // Set genre name
+    booksController.genreName.value = widget.genre.name ?? 'Unknown';
+    booksController.genreId.value = widget.genre.id;
+
     _fetchGenreBooks();
   }
 

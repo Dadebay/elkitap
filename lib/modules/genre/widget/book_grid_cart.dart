@@ -27,7 +27,7 @@ class BookCardGridView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          book.withAudio
+          book.withAudio && tabIndex == 1
               ? SizedBox(
                   width: 148,
                   height: 148,
@@ -107,7 +107,7 @@ class BookCardGridView extends StatelessWidget {
           child: () {
             // Determine which image to use
             String? imageToUse;
-            if (book.withAudio) {
+            if (book.withAudio && tabIndex == 1) {
               imageToUse = book.audioImage;
             } else {
               imageToUse = book.image;

@@ -26,11 +26,45 @@ class GenrsDetailViewScreen extends StatefulWidget {
 
 class _GenrsDetailViewScreenState extends State<GenrsDetailViewScreen> {
   int selectedTab = 0;
+  late GetAllBooksController recommendedController;
+  late GetAllBooksController topOfWeekController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Create separate controller instances for each section
+    recommendedController = Get.put(
+      GetAllBooksController(),
+      tag: 'genre_recommended_${widget.id}',
+    );
+    topOfWeekController = Get.put(
+      GetAllBooksController(),
+      tag: 'genre_topweek_${widget.id}',
+    );
+
+    // Set genre_id and genre name
+    recommendedController.genreId.value = widget.id;
+    recommendedController.genreName.value = widget.title;
+    recommendedController.getRecommendedBooks();
+
+    topOfWeekController.genreId.value = widget.id;
+    topOfWeekController.genreName.value = widget.title;
+    topOfWeekController.getTopOfTheWeekBooks();
+  }
+
+  @override
+  void dispose() {
+    // Clean up controllers
+    Get.delete<GetAllBooksController>(tag: 'genre_recommended_${widget.id}');
+    Get.delete<GetAllBooksController>(tag: 'genre_topweek_${widget.id}');
+    super.dispose();
+  }
 
   // Refresh function
   Future<void> _onRefresh() async {
     try {
-      Get.find<GetAllBooksController>().refreshBooks();
+      recommendedController.getRecommendedBooks();
+      topOfWeekController.getTopOfTheWeekBooks();
       Get.find<AllGenresController>().fetchSubGenres(widget.id);
 
       await Future.delayed(const Duration(seconds: 1));
@@ -56,37 +90,30 @@ class _GenrsDetailViewScreenState extends State<GenrsDetailViewScreen> {
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: Theme.of(context).brightness == Brightness.dark
-                            ? [Color(0x001C1C1E), Color(0xFF1C1C1E)]
-                            : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
+                        colors: Theme.of(context).brightness == Brightness.dark ? [Color(0x001C1C1E), Color(0xFF1C1C1E)] : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                     ),
-                    child: SubFeaturedBooksSection(tabIndex: selectedTab),
+                    child: SubFeaturedBooksSection(tabIndex: selectedTab, genreId: widget.id),
                   ),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: Theme.of(context).brightness == Brightness.dark
-                            ? [
-                                Color(0x001C1C1E),
-                                Color(0xFF1C1C1E)
-                              ] // dark mode gradient
+                            ? [Color(0x001C1C1E), Color(0xFF1C1C1E)] // dark mode gradient
                             : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
                     ),
-                    child: SubTopOfWeekSection(),
+                    child: SubTopOfWeekSection(genreId: widget.id),
                   ),
                   const SizedBox(height: 24),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: Theme.of(context).brightness == Brightness.dark
-                            ? [Color(0x001C1C1E), Color(0xFF1C1C1E)]
-                            : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
+                        colors: Theme.of(context).brightness == Brightness.dark ? [Color(0x001C1C1E), Color(0xFF1C1C1E)] : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
@@ -114,10 +141,7 @@ class Header extends StatelessWidget {
       child: Text(
         title,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-            fontSize: 26,
-            fontFamily: StringConstants.GilroyBold,
-            fontWeight: FontWeight.bold),
+        style: TextStyle(fontSize: 26, fontFamily: StringConstants.GilroyBold, fontWeight: FontWeight.bold),
       ),
     );
   }

@@ -69,6 +69,11 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
     if (isInitialized) return;
     isInitialized = true;
 
+    // Set genre_id if provided
+    if (widget.id != null && widget.id! > 0) {
+      booksController.genreId.value = widget.id;
+    }
+
     if (widget.isRecentlyOpened) {
       await booksController.getRecentlyOpenedBooks();
     } else if (widget.isWantToRead) {
@@ -79,13 +84,13 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
       await booksController.getMyBooks();
     } else if (widget.recommended) {
       if (widget.isAudio) {
-        await booksController.searchBooksWithFilters(recommendedFilter: true, withAudioFilter: true);
+        await booksController.searchBooksWithFilters(recommendedFilter: true, withAudioFilter: true, genreIdFilter: widget.id);
       } else {
         await booksController.getRecommendedBooks();
       }
     } else if (widget.isWeekly) {
       if (widget.isAudio) {
-        await booksController.searchBooksWithFilters(topOfTheWeekFilter: true, withAudioFilter: true);
+        await booksController.searchBooksWithFilters(topOfTheWeekFilter: true, withAudioFilter: true, genreIdFilter: widget.id);
       } else {
         await booksController.getTopOfTheWeekBooks();
       }
@@ -179,12 +184,13 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    childAspectRatio: widget.isAudio ? 0.80 : 0.65,
+                    childAspectRatio: widget.isAudio ? 0.70 : 0.65,
                   ),
                   itemBuilder: (context, index) {
                     final book = booksController.books[index];
                     return BookCardGridView(
                       book: book,
+                      tabIndex: widget.isAudio ? 1 : 0,
                       onTap: () {
                         Get.to(() => BookDetailView(book: book));
                       },

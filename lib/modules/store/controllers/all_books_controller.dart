@@ -10,6 +10,7 @@ class GetAllBooksController extends GetxController {
   final RxString errorMessage = ''.obs;
   final RxnBool finished = RxnBool(null);
   final RxnInt genreId = RxnInt(null);
+  final RxString genreName = ''.obs;
   final RxBool hasMore = true.obs;
   var isGridView = true.obs;
   final RxBool isLoading = false.obs;
@@ -102,10 +103,19 @@ class GetAllBooksController extends GetxController {
       if (withAudio.value != null) {
         queryParameters['with_audio'] = withAudio.value.toString();
       }
-      print(recommended.value.obs);
-      print(ApiEndpoints.allBooks);
-      print(queryParameters);
-      print(ApiEndpoints.allBooks);
+
+      // Build full URL for debugging
+      final queryString = queryParameters.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final fullUrl = 'https://api.elkitap.com.tm${ApiEndpoints.allBooks}?$queryString';
+
+      print('╔════════════════════════════════════════════════════════════════════');
+      print('║ 📡 FETCHING BOOKS FROM:');
+      if (genreName.value.isNotEmpty) {
+        print('║ 🏷️  Genre: ${genreName.value} (ID: ${genreId.value})');
+      }
+      print('║ $fullUrl');
+      print('╚════════════════════════════════════════════════════════════════════');
+
       final response = await _networkManager.get(
         ApiEndpoints.allBooks,
         sendToken: true,
@@ -212,6 +222,7 @@ class GetAllBooksController extends GetxController {
   Future<void> getTopOfTheWeekBooks() async {
     await fetchBooks(
       topOfTheWeekFilter: true,
+      genreIdFilter: genreId.value,
       resetPagination: true,
     );
   }

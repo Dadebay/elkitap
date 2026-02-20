@@ -9,16 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class SubTopOfWeekSection extends StatelessWidget {
-  const SubTopOfWeekSection({super.key});
+  final int? genreId;
+  const SubTopOfWeekSection({this.genreId, super.key});
 
   @override
   Widget build(BuildContext context) {
-    final GetAllBooksController controller = Get.find<GetAllBooksController>();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.books.isEmpty || controller.topOfTheWeek.value == true) {
-        controller.getTopOfTheWeekBooks();
-      }
-    });
+    final GetAllBooksController controller = genreId != null ? Get.find<GetAllBooksController>(tag: 'genre_topweek_$genreId') : Get.find<GetAllBooksController>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,15 +24,11 @@ class SubTopOfWeekSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: GestureDetector(
             onTap: () {
-              Get.to(() => BooksGridScreen(
-                  title: "top_of_the_week_t".tr, id: 0, isWeekly: true));
+              Get.to(() => BooksGridScreen(title: "top_of_the_week_t".tr, id: genreId ?? 0, isWeekly: true));
             },
             child: Text(
               "top_of_the_week_t".tr,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: StringConstants.GilroyBold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: StringConstants.GilroyBold),
             ),
           ),
         ),
@@ -46,9 +38,7 @@ class SubTopOfWeekSection extends StatelessWidget {
             return LoadingWidget(removeBackWhite: true);
           }
           if (controller.errorMessage.value.isNotEmpty) {
-            return ErrorStateWidget(
-                errorMessage: controller.errorMessage.value,
-                onRetry: () => controller.getRecommendedBooks());
+            return ErrorStateWidget(errorMessage: controller.errorMessage.value, onRetry: () => controller.getRecommendedBooks());
           }
           final books = controller.books;
           if (books.isEmpty) {

@@ -11,16 +11,12 @@ import 'package:get/get.dart';
 
 class SubFeaturedBooksSection extends StatelessWidget {
   final int tabIndex;
-  const SubFeaturedBooksSection({required this.tabIndex, super.key});
+  final int? genreId;
+  const SubFeaturedBooksSection({required this.tabIndex, this.genreId, super.key});
 
   @override
   Widget build(BuildContext context) {
-    final GetAllBooksController controller = Get.find<GetAllBooksController>();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.books.isEmpty || controller.recommended.value == true) {
-        controller.getRecommendedBooks();
-      }
-    });
+    final GetAllBooksController controller = genreId != null ? Get.find<GetAllBooksController>(tag: 'genre_recommended_$genreId') : Get.find<GetAllBooksController>();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20),
@@ -34,7 +30,7 @@ class SubFeaturedBooksSection extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: () {
-                    Get.to(() => BooksGridScreen(title: "new_in_genre".tr, id: 0, recommended: true));
+                    Get.to(() => BooksGridScreen(title: "new_in_genre".tr, id: genreId ?? 0, recommended: true));
                   },
                   child: Text(
                     "new_in_genre".tr,

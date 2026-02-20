@@ -15,8 +15,7 @@ class FeaturedBooksSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final GetAllBooksController controller =
-        Get.put(GetAllBooksController(), tag: 'featured_books_$tabIndex');
+    final GetAllBooksController controller = Get.put(GetAllBooksController(), tag: 'featured_books_$tabIndex');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (controller.books.isEmpty || controller.recommended.value == true) {
@@ -42,30 +41,17 @@ class FeaturedBooksSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  tabIndex == 0
-                      ? "featured_books".tr
-                      : 'featured_audiobooks'.tr,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontFamily: StringConstants.SFPro,
-                      color: Colors.grey),
+                  tabIndex == 0 ? "featured_books".tr : 'featured_audiobooks'.tr,
+                  style: TextStyle(fontSize: 12, fontFamily: StringConstants.SFPro, color: Colors.grey),
                 ),
                 const SizedBox(height: 4),
                 GestureDetector(
                   onTap: () {
-                    Get.to(() => BooksGridScreen(
-                        title: "we_recommend_t".tr,
-                        id: 0,
-                        recommended: true,
-                        isAudio: tabIndex == 1));
+                    Get.to(() => BooksGridScreen(title: "we_recommend_t".tr, id: 0, recommended: true, isAudio: tabIndex == 1));
                   },
                   child: Text(
                     "we_recommend_t".tr,
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontFamily: StringConstants.GilroyBold,
-                        fontStyle: FontStyle.normal,
-                        fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 20, fontFamily: StringConstants.GilroyBold, fontStyle: FontStyle.normal, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -77,9 +63,7 @@ class FeaturedBooksSection extends StatelessWidget {
             }
 
             if (controller.errorMessage.value.isNotEmpty) {
-              return ErrorStateWidget(
-                  errorMessage: controller.errorMessage.value,
-                  onRetry: () => controller.getRecommendedBooks());
+              return ErrorStateWidget(errorMessage: controller.errorMessage.value, onRetry: () => controller.getRecommendedBooks());
             }
 
             final books = controller.books;
@@ -97,8 +81,7 @@ class FeaturedBooksSection extends StatelessWidget {
                 itemCount: books.length > 10 ? 10 : books.length,
                 itemBuilder: (context, index) {
                   final book = books[index];
-                  final isLast =
-                      index == (books.length > 10 ? 9 : books.length - 1);
+                  final isLast = index == (books.length > 10 ? 9 : books.length - 1);
 
                   return TweenAnimationBuilder<double>(
                     duration: Duration(milliseconds: 300 + (index * 80)),
@@ -113,8 +96,7 @@ class FeaturedBooksSection extends StatelessWidget {
                       );
                     },
                     child: Padding(
-                      padding: EdgeInsets.only(
-                          right: isLast ? 0 : 32, bottom: 24, top: 24, left: 0),
+                      padding: EdgeInsets.only(right: isLast ? 0 : 32, bottom: 24, top: 24, left: 0),
                       child: BookCard(
                         index: index,
                         tabIndex: tabIndex,
