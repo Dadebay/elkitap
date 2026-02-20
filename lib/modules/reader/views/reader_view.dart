@@ -59,7 +59,7 @@ class EpubReaderScreen extends StatefulWidget {
   State<EpubReaderScreen> createState() => _EpubReaderScreenState();
 }
 
-class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMixin, ReaderHandlersMixin {
+class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMixin, ReaderHandlersMixin, WidgetsBindingObserver {
   late final GetAllBooksController allBooksController;
 
   late final EpubController controller;
@@ -107,6 +107,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   double _touchDownY = 0.0;
   final epub.EpubController _viewerController = epub.EpubController();
   int _viewerCurrentPage = 1;
+  int _jsRawCurrentPage = 1; // raw unstabilised page from JS — used for swipe-guard comparisons
   int _viewerTotalPages = 1;
   int _liveTotalPages = 1;
   int _stableTotalPages = 1;
@@ -129,6 +130,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   bool _isBuildingChapterPages = false;
   bool _useManualSwipeFallback = false;
   bool _isVppLocked = false;
+  bool _vppDisplayTimedOut = false; // true after 6.5 s without VPP lock — stops spinner even if JS never locks
   bool _isAwaitingFontVppRecalibration = false;
   int _manualSwipeRequestId = 0;
   DateTime? _vppPendingSince;
@@ -139,8 +141,66 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   Timer? _restoreRetryTimer;
   int _restoreRelocateLogCount = 0;
   int _restoreRetryCount = 0;
+  int _restoreStuckAtZeroCount = 0; // counts onRelocated events where progress=0 while _isRestoringProgress
+  bool _hasPostVppRestoreKick = false;
 
   Map<String, int> _chapterPages = {};
+
+  void _applyReaderSystemUiStyle() {
+    if (!Platform.isAndroid) return;
+
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarDividerColor: Colors.black,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarContrastEnforced: false,
+      ),
+    );
+  }
+
+  void _startRestoreWatchdog() {
+    _restoreRetryTimer?.cancel();
+    _restoreRetryTimer = Timer.periodic(const Duration(milliseconds: 450), (timer) {
+      if (!mounted || !_isRestoringProgress || _pendingRestoreProgress == null) {
+        timer.cancel();
+        return;
+      }
+
+      _restoreRetryCount++;
+
+      // Timeout: if restore still hasn't succeeded after 15 retries (~6.75s),
+      // epub.js is likely reporting progress=0 for the correct physical location
+      // (broken location index for this book). Give up so the user can navigate freely.
+      if (_restoreRetryCount >= 15) {
+        log('⚠️ Restore watchdog timeout after $_restoreRetryCount retries — abandoning restore at ${_pendingRestoreProgress!}');
+        timer.cancel();
+        setState(() {
+          _isRestoringProgress = false;
+          _pendingRestoreProgress = null;
+        });
+        _markReaderReadyIfPossible();
+        return;
+      }
+
+      if (_restoreRetryCount % 4 == 1) {
+        log('🔁 Retry restore to ${_pendingRestoreProgress!}');
+      }
+      _viewerController.toProgressPercentage(_pendingRestoreProgress!);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _applyReaderSystemUiStyle();
+    }
+  }
 
   @override
   String get bookId => widget.bookId;
@@ -152,12 +212,17 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   void dispose() {
     _initialLoadingTimer?.cancel();
     _fontSizeDebounceTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
+
+    _applyReaderSystemUiStyle();
 
     libraryMainController = Get.find<LibraryMainController>();
     allBooksController = Get.find<GetAllBooksController>();
@@ -194,10 +259,18 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
     controller.initialize(bookId: int.parse(widget.bookId));
 
-    // Safety watchdog: keep loading state strict until VPP is ready
+    // Safety watchdog: if VPP never locks, force dismiss the loading overlay so
+    // the user isn't stuck staring at a spinner forever.
     _initialLoadingTimer = Timer(const Duration(seconds: 8), () {
-      if (mounted && _isLoadingPages) {
-        log('⏱️ Still waiting for VPP lock; keep loading visible (strict mode)');
+      if (!mounted) return;
+      if (_isLoadingPages && _liveTotalPages > 1) {
+        log('⏱️ Loading timeout (8s) — VPP still not locked. Force-dismissing loading overlay.');
+        setState(() {
+          _isLoadingPages = false;
+          _useManualSwipeFallback = true;
+          if (_viewerTotalPages <= 1) _viewerTotalPages = _liveTotalPages;
+        });
+        _markReaderReadyIfPossible();
       }
     });
 
@@ -411,6 +484,21 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   Future<void> _handleClose() async {
     try {
       log('CLOSING READER...');
+
+      // Force-save current position when VPP never locked during this session.
+      // Without this, closing the reader before VPP calibration completes leaves
+      // controller.currentPage == 0, so saveProgressAndClose() skips the network save
+      // and the user is taken back to the old server-side progress on next open.
+      if (controller.currentPage.value == 0) {
+        final effectiveTotal = _viewerTotalPages > 1 ? _viewerTotalPages : _liveTotalPages;
+        final effectivePage = _jsRawCurrentPage > 0 ? _jsRawCurrentPage : _viewerCurrentPage;
+        if (effectiveTotal > 1 && effectivePage > 0) {
+          log('💾 Pre-close force save (VPP never locked): page $effectivePage / $effectiveTotal');
+          controller.onPageFlip(effectivePage, effectiveTotal);
+          _saveTextProgressToAudio(effectivePage, effectiveTotal);
+        }
+      }
+
       await controller.saveProgressAndClose();
 
       if (detailController.bookDetail.value != null) {
@@ -433,26 +521,26 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     try {
       final pageInfo = await _viewerController.getPageInfo();
       int currentPage = (pageInfo['currentPage'] as num?)?.toInt() ?? 1;
+      // Store the raw JS page BEFORE any Dart-side stabilisation so that swipe guards
+      // can detect real page movement even when progress=0 locks the stabilised value at 1.
+      _jsRawCurrentPage = currentPage;
       final rawTotalPages = (pageInfo['totalPages'] as num?)?.toInt() ?? 1;
       final vppReady = pageInfo['vppReady'] == true;
       final vppSampleCount = (pageInfo['vppSampleCount'] as num?)?.toInt() ?? 0;
 
-      log('🔬[PAGE_INFO:RAW] current=$currentPage rawTotal=$rawTotalPages vppReady=$vppReady samples=$vppSampleCount pendingJump=$_pendingJumpProgressFactor relocatedProgress=$_lastRelocatedProgress');
-
       // Stabilize page count against common ±1 jitters from webview/VPP calibration.
       int totalPages = rawTotalPages;
 
-      // Prefer cached (last locked) total while VPP is pending only if it's close to current estimate.
-      // If difference is large, cached value is likely stale for this layout/session.
+      // While VPP is pending the rawTotalPages from JS is the epub.js location-index count
+      // (e.g. 1789), which is a different unit from the VPP visual-page count (e.g. 894).
+      // They are NOT comparable — the location count is always ~2× the visual page count
+      // for this renderer. So when we have a cached VPP total (same font size, locked
+      // from a previous session), always prefer it over the raw location count.
+      // Only ignore the cache when font size has changed (_isAwaitingFontVppRecalibration).
       final cachedTotalPages = getCachedTotalPages(fontSize: _fontSize);
-      if (!vppReady && !_isAwaitingFontVppRecalibration && cachedTotalPages != null && cachedTotalPages > 1 && rawTotalPages > 1) {
-        final relativeDiff = ((rawTotalPages - cachedTotalPages).abs()) / cachedTotalPages;
-        if (relativeDiff <= 0.15) {
-          totalPages = cachedTotalPages;
-          log('🧷 Using cached totalPages while VPP pending: raw=$rawTotalPages -> cached=$cachedTotalPages');
-        } else {
-          log('🧪 Ignoring stale cached totalPages while VPP pending: raw=$rawTotalPages, cached=$cachedTotalPages');
-        }
+      if (!vppReady && !_isAwaitingFontVppRecalibration && cachedTotalPages != null && cachedTotalPages > 1) {
+        totalPages = cachedTotalPages;
+        log('🧷 Using cached VPP totalPages while calibrating: raw=$rawTotalPages -> cached=$cachedTotalPages');
       } else if (!vppReady && _isAwaitingFontVppRecalibration && cachedTotalPages != null && cachedTotalPages > 1) {
         log('🔤 Font size changed: ignore cached totalPages=$cachedTotalPages until VPP locks');
       }
@@ -477,9 +565,15 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
       // While VPP is not locked, pageInfo.currentPage can jitter without real movement.
       // Use relocated progress as source of truth to avoid fake increments from page 1.
-      if (!vppReady && totalPages > 1) {
-        final derivedFromProgress = ((_lastRelocatedProgress.clamp(0.0, 1.0)) * totalPages).floor() + 1;
-        final normalized = derivedFromProgress.clamp(1, totalPages);
+      // BUT: when progress is broken (always 0) yet JS tracked page has advanced past 1,
+      // trust the JS tracked page — clamping to progress would force page back to 1.
+      // Also bypass when progress is non-zero but tiny (book-start zone where spine items
+      // transition from 0 → small progress), detected by JS raw page being >2× the
+      // progress-based estimate (e.g. raw=19, progressBased=2 → 19 > 4 → trust JS).
+      final progressBasedEstimate = ((_lastRelocatedProgress.clamp(0.0, 1.0)) * totalPages).floor() + 1;
+      final useRawPageWhileProgressBroken = !vppReady && totalPages > 1 && _jsRawCurrentPage > 1 && (_lastRelocatedProgress <= 0.0005 || _jsRawCurrentPage > progressBasedEstimate * 2);
+      if (!vppReady && totalPages > 1 && !useRawPageWhileProgressBroken) {
+        final normalized = progressBasedEstimate.clamp(1, totalPages);
         if ((currentPage - normalized).abs() >= 1) {
           log('🧮 Stabilized currentPage while VPP pending: raw=$currentPage -> progressBased=$normalized (p=${(_lastRelocatedProgress * 100).toStringAsFixed(2)}%)');
           currentPage = normalized;
@@ -488,7 +582,8 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
       // Extra boundary clamp: prevent start/end off-by-one flicker only while VPP is pending.
       // After VPP lock, rely on JS-calculated currentPage to avoid getting stuck at page 1.
-      if (!vppReady) {
+      // Skip when progress is broken but JS reports a valid page > 1.
+      if (!vppReady && !useRawPageWhileProgressBroken) {
         if (_lastRelocatedProgress <= 0.0005 && currentPage > 1) {
           currentPage = 1;
         } else if (_lastRelocatedProgress >= 0.9995 && totalPages > 1 && currentPage < totalPages) {
@@ -497,8 +592,6 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       }
 
       _liveTotalPages = totalPages;
-
-      log('🔬[PAGE_INFO:NORMALIZED] current=$currentPage total=$totalPages live=$_liveTotalPages viewer=$_viewerCurrentPage/$_viewerTotalPages pendingJump=$_pendingJumpProgressFactor');
 
       // Enhanced page info logging
       log('╔═══════════════════════════════════════════════════════════╗');
@@ -515,21 +608,17 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
         final int? pendingJumpTargetPage =
             (_pendingJumpProgressFactor != null && totalPages > 1) ? ((_pendingJumpProgressFactor!.clamp(0.0, 1.0) * (totalPages - 1)) + 1).round().clamp(1, totalPages) : null;
 
-        log('🔬[PENDING:EVAL] pending=$_pendingJumpProgressFactor -> targetPage=$pendingJumpTargetPage | incomingCurrent=$currentPage total=$totalPages');
-
         setState(() {
           _viewerCurrentPage = currentPage;
           _isVppLocked = vppReady;
 
           if (pendingJumpTargetPage != null && (currentPage - pendingJumpTargetPage).abs() <= 1) {
-            log('🔬[PENDING:CLEAR] currentPage=$currentPage targetPage=$pendingJumpTargetPage diff=${(currentPage - pendingJumpTargetPage).abs()} -> clearing pending jump');
             _pendingJumpProgressFactor = null;
-          } else if (pendingJumpTargetPage != null) {
-            log('🔬[PENDING:KEEP] currentPage=$currentPage targetPage=$pendingJumpTargetPage diff=${(currentPage - pendingJumpTargetPage).abs()} -> keep pending jump');
           }
 
           if (vppReady) {
             _vppPendingSince = null;
+            _vppDisplayTimedOut = false;
             _isAwaitingFontVppRecalibration = false;
           }
 
@@ -560,10 +649,30 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
               log('⚡ Forced fallback after ${pendingMs}ms VPP pending. Using live pages: $totalPages');
             }
 
+            // Safety timeout: if VPP does not lock for too long, stop spinner and continue with fallback pages.
+            // This prevents endless "Calibrating..." state on devices/webviews where VPP samples never arrive.
+            if (_isLoadingPages && pendingMs >= 6500 && _liveTotalPages > 1 && !_isRestoringProgress) {
+              _isLoadingPages = false;
+              _vppDisplayTimedOut = true; // stop page-counter spinner even if VPP never locks
+              _initialLoadingTimer?.cancel();
+              _useManualSwipeFallback = true;
+              log('⚠️ VPP lock timeout after ${pendingMs}ms (samples=$vppSampleCount). Fail-open: hiding loading spinner and continuing with fallback pages ($_liveTotalPages).');
+            }
+
             if (_isLoadingPages) {
               log('⏳ VPP calibrating (samples=$vppSampleCount) - keeping loading spinner visible...');
             }
           }
+        });
+      }
+
+      if (vppReady && _isRestoringProgress && _pendingRestoreProgress != null && !_hasPostVppRestoreKick && currentPage <= 2) {
+        _hasPostVppRestoreKick = true;
+        final target = _pendingRestoreProgress!;
+        Future.delayed(const Duration(milliseconds: 180), () {
+          if (!mounted || !_isRestoringProgress || _pendingRestoreProgress == null) return;
+          log('🎯 Post-VPP restore kick to $target');
+          _viewerController.toProgressPercentage(target);
         });
       }
 
@@ -577,11 +686,16 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
         _applyAudioProgressIfNeeded();
       }
 
+      final effectiveSkipProgressSave = skipProgressSave || _isRestoringProgress;
+      if (_isRestoringProgress) {
+        log('⏸️ Restore in progress - skip saving progress this cycle (page: $currentPage/$totalPages)');
+      }
+
       // Save progress only after VPP is ready (fully calibrated)
       if (totalPages > 1 && vppReady) {
         _cacheTotalPages(totalPages);
 
-        if (!skipProgressSave) {
+        if (!effectiveSkipProgressSave) {
           controller.onPageFlip(currentPage, totalPages);
           _saveTextProgressToAudio(currentPage, totalPages);
         } else {
@@ -675,14 +789,28 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     final audioProgress = _getAudioProgress();
     log('   audioProgress from storage: $audioProgress');
 
-    if (audioProgress != null && audioProgress > 0.01) {
+    if (audioProgress != null && audioProgress > 0.001) {
       final targetPage = (audioProgress * _liveTotalPages).round();
       log('✅ Audio progress found: ${(audioProgress * 100).toStringAsFixed(1)}%');
       log('   Target page: $targetPage / $_liveTotalPages');
       log('🚀 Applying audio progress to viewer...');
+
+      _isRestoringProgress = true;
+      _pendingRestoreProgress = audioProgress;
+      _pendingJumpProgressFactor = audioProgress;
+      _restoreRetryTimer?.cancel();
+      _restoreRelocateLogCount = 0;
+      _restoreRetryCount = 0;
+      _restoreStuckAtZeroCount = 0;
+      _hasPostVppRestoreKick = false;
+      _startRestoreWatchdog();
+
       _viewerController.toProgressPercentage(audioProgress);
       log('✅ Applied progress successfully');
     } else {
+      _isRestoringProgress = false;
+      _pendingRestoreProgress = null;
+      _restoreRetryTimer?.cancel();
       log('❌ No audio progress to apply (progress: $audioProgress)');
     }
 
@@ -874,9 +1002,18 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       _isReaderReady = false;
       _hasAppliedAudioProgress = false; // Reset to allow audio progress restoration on reopen
       _pendingJumpProgressFactor = null;
+      _isRestoringProgress = false;
+      _pendingRestoreProgress = null;
+      _restoreRetryTimer?.cancel();
+      _restoreRelocateLogCount = 0;
+      _restoreRetryCount = 0;
+      _restoreStuckAtZeroCount = 0;
+      _hasPostVppRestoreKick = false;
       _useManualSwipeFallback = false;
       _isVppLocked = false;
+      _vppDisplayTimedOut = false;
       _isAwaitingFontVppRecalibration = false;
+      _jsRawCurrentPage = 1;
       _stableTotalPages = 1;
       _lastChapterBuildTotalPages = 0;
       _vppPendingSince = null;
@@ -1043,13 +1180,14 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   }
 
   void _triggerManualPageTurn({required bool toNext}) {
-    if (_isVppLocked || !_useManualSwipeFallback) {
-      log('⏭️ Manual swipe fallback aborted (VPP locked or fallback disabled)');
-      return;
-    }
+    // Both call sites already confirmed (via _jsRawCurrentPage guard) that JS did not handle
+    // the swipe, so fire unconditionally. This also covers the WebView-stolen-touch case
+    // where VPP is locked but the native scroll consumed the event before epub.js could.
 
     final requestId = ++_manualSwipeRequestId;
-    final startPage = _viewerCurrentPage;
+    // Use the raw JS page (not Dart-stabilised _viewerCurrentPage) so the guard
+    // correctly detects movement even when progress=0 keeps _viewerCurrentPage at 1.
+    final startRawPage = _jsRawCurrentPage;
 
     if (toNext) {
       _viewerController.next();
@@ -1061,16 +1199,27 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
     Future.delayed(const Duration(milliseconds: 240), () {
       if (!mounted || requestId != _manualSwipeRequestId) return;
-      if (_isVppLocked || !_useManualSwipeFallback) return;
 
-      // First command already worked.
-      if (_viewerCurrentPage != startPage) return;
+      // First command already worked — JS moved to a different raw page.
+      if (_jsRawCurrentPage != startRawPage) return;
 
       // Second-stage nudge by progress to recover stuck pages on some WebView/offline states.
       if (_viewerTotalPages <= 1) return;
 
+      // When epub.js reports progress=0 for all pages (broken location index), deriving
+      // nudgedProgress from _viewerCurrentPage always yields 0.0, which resolves to the
+      // first spine item and jumps the user forward every single time they swipe back.
+      // Guard: only use progress nudge when we have a meaningful non-zero progress signal.
+      // Otherwise fall back to a second direct prev()/next() call.
+      if (_lastRelocatedProgress <= 0.0005) {
+        // Progress is broken (always 0) — step 1 already fired next()/prev().
+        // Do NOT repeat; the JS tracked page will handle direction correctly.
+        log('↪️ Manual swipe fallback: skip step 2 (progress=0 mode, step 1 sufficient)');
+        return;
+      }
+
       final step = 1 / (_viewerTotalPages - 1);
-      final currentProgress = (_viewerCurrentPage - 1) / (_viewerTotalPages - 1);
+      final currentProgress = _lastRelocatedProgress.clamp(0.0, 1.0);
       final nudgedProgress = toNext ? (currentProgress + step).clamp(0.0, 1.0) : (currentProgress - step).clamp(0.0, 1.0);
 
       _viewerController.toProgressPercentage(nudgedProgress);
@@ -1080,24 +1229,18 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
   Future<void> _jumpToPage(int page) async {
     final effectiveTotalPages = _viewerTotalPages > 1 ? _viewerTotalPages : _liveTotalPages;
-    if (effectiveTotalPages <= 1) {
-      log('🔬[JUMP:SKIP] effectiveTotalPages=$effectiveTotalPages page=$page pending=$_pendingJumpProgressFactor');
-      return;
-    }
+    if (effectiveTotalPages <= 1) return;
 
     final targetPage = page.clamp(1, effectiveTotalPages);
 
     final progressPercent = (effectiveTotalPages > 1) ? (targetPage - 1) / (effectiveTotalPages - 1) : 0.0;
 
     log('📌 Jumping to page $targetPage (progress: $progressPercent)');
-    log('🔬[JUMP:CALL] requested=$page target=$targetPage effectiveTotal=$effectiveTotalPages viewer=$_viewerCurrentPage/$_viewerTotalPages live=$_liveTotalPages pending=$_pendingJumpProgressFactor');
 
     try {
       await _viewerController.toProgressPercentage(progressPercent);
-      log('🔬[JUMP:DONE] target=$targetPage progress=$progressPercent pending=$_pendingJumpProgressFactor');
     } catch (e) {
       log('❌ Error jumping to page $targetPage: $e');
-      log('🔬[JUMP:ERROR] target=$targetPage pending=$_pendingJumpProgressFactor error=$e');
     }
   }
 
@@ -1369,7 +1512,6 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
                   },
                   onRelocated: (location) {
                     log('📍 Relocated: progress=${(location.progress * 100).toStringAsFixed(1)}% | Page: $_viewerCurrentPage/$_viewerTotalPages | FontSize: $_fontSize');
-                    log('🔬[RELOCATED] progress=${location.progress} href=${location.href} cfi=${location.startCfi} pendingJump=$_pendingJumpProgressFactor viewerBefore=$_viewerCurrentPage/$_viewerTotalPages');
 
                     _lastRelocatedProgress = location.progress;
 
@@ -1392,20 +1534,50 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
                         if (_restoreRelocateLogCount % 10 == 1) {
                           log('⏳ Restoring progress (current: $currentProgress, target: $targetProgress)');
                         }
-                        _restoreRetryTimer?.cancel();
-                        _restoreRetryTimer = Timer(const Duration(milliseconds: 350), () {
-                          if (_isRestoringProgress && _pendingRestoreProgress != null) {
-                            _restoreRetryCount++;
-                            if (_restoreRetryCount % 5 == 1) {
-                              log('🔁 Retry restore to ${_pendingRestoreProgress!}');
-                            }
-                            _viewerController.toProgressPercentage(_pendingRestoreProgress!);
+
+                        // Stuck-at-zero escape hatch:
+                        // Some books have broken epub.js location indices that always
+                        // report progress=0 even when the correct CFI is displayed.
+                        // After the watchdog has tried a few times and every relocated
+                        // event still comes back at 0%, the display IS at the right
+                        // physical position — just epub.js can't report it correctly.
+                        // Stop retrying so the user can navigate freely.
+                        if (currentProgress <= 0.001 && _restoreRetryCount >= 3) {
+                          _restoreStuckAtZeroCount++;
+                          if (_restoreStuckAtZeroCount >= 4) {
+                            log('⚠️ Restore stuck at 0% for $_restoreStuckAtZeroCount events (target=$targetProgress) — epub.js location index broken for this book. Abandoning restore.');
+                            setState(() {
+                              _isRestoringProgress = false;
+                              _pendingRestoreProgress = null;
+                            });
+                            _restoreRetryTimer?.cancel();
+                            _markReaderReadyIfPossible();
                           }
-                        });
+                        } else {
+                          _restoreStuckAtZeroCount = 0;
+                        }
                       }
                     }
 
                     _updatePageInfo(skipProgressSave: !_hasAppliedAudioProgress || _isRestoringProgress);
+
+                    // Page-based restore detection:
+                    // For books where epub.js always reports progress=0, the progress-based
+                    // check above never succeeds. However, after the JS fix, the tracked page
+                    // now correctly uses _pendingDirectJumpProgress. If the JS-reported page
+                    // is close to the target page, the restore is complete.
+                    if (_isRestoringProgress && _pendingRestoreProgress != null && _viewerTotalPages > 1 && _jsRawCurrentPage > 1) {
+                      final targetPage = (_pendingRestoreProgress! * (_viewerTotalPages - 1) + 1).round().clamp(1, _viewerTotalPages);
+                      if ((_jsRawCurrentPage - targetPage).abs() <= 3) {
+                        log('✅ Restore complete via page-based detection (page $_jsRawCurrentPage ≈ target $targetPage)');
+                        setState(() {
+                          _isRestoringProgress = false;
+                          _pendingRestoreProgress = null;
+                        });
+                        _restoreRetryTimer?.cancel();
+                        _markReaderReadyIfPossible();
+                      }
+                    }
 
                     log('   totalPages after update: $_viewerTotalPages');
                     _updateCurrentChapter();
@@ -1485,18 +1657,32 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
                       });
                     } else {
                       final isHorizontalSwipe = dx >= 0.18 && dy <= 0.12 && dt > 0 && dt <= 900;
-                      if (_useManualSwipeFallback && !_isVppLocked && !_isProgressLongPressed && !_isLoadingPages && isHorizontalSwipe && _viewerTotalPages > 1) {
-                        final pageBefore = _viewerCurrentPage;
+                      // Fire on any qualifying horizontal swipe — regardless of VPP lock state.
+                      // The _jsRawCurrentPage guard inside _triggerManualPageTurn will abort
+                      // if JS already handled the swipe (page already moved). This also covers
+                      // the case where the WebView's native scroll steals the touch before
+                      // epub.js can preventDefault(), leaving the page frozen even with VPP locked.
+                      if (!_isProgressLongPressed && !_isLoadingPages && isHorizontalSwipe && _viewerTotalPages > 1) {
+                        final pageBefore = _jsRawCurrentPage; // raw JS page, not Dart-stabilised
+                        final cfiBefore = _currentCfi; // CFI before swipe — changes even when trackedPage stays at 1
                         final swipeToNext = x < _touchDownX;
                         final requestId = ++_manualSwipeRequestId;
 
                         Future.delayed(const Duration(milliseconds: 140), () {
                           if (!mounted || requestId != _manualSwipeRequestId) return;
-                          if (_isVppLocked || !_useManualSwipeFallback) return;
 
-                          // If page already changed, JS swipe succeeded; don't apply manual fallback.
-                          if (_viewerCurrentPage != pageBefore) {
-                            log('⏭️ Manual swipe fallback skipped (JS already moved page $pageBefore -> $_viewerCurrentPage)');
+                          // If JS raw page changed, JS swipe succeeded.
+                          if (_jsRawCurrentPage != pageBefore) {
+                            log('⏭️ Manual swipe fallback skipped (JS already moved page $pageBefore -> $_jsRawCurrentPage)');
+                            return;
+                          }
+
+                          // Secondary CFI check: for progress=0 books where _trackedPage is clamped at 1
+                          // even after moving (e.g., navigating backward within a TOC spine item),
+                          // the relocated event still updates _currentCfi with a new position.
+                          // If CFI changed, JS handled the swipe — do not fire a second prev()/next().
+                          if (_currentCfi != cfiBefore && _currentCfi != null && cfiBefore != null) {
+                            log('⏭️ Manual swipe fallback skipped (CFI changed: JS already handled swipe)');
                             return;
                           }
 
@@ -1532,6 +1718,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
               currentPage: _viewerCurrentPage,
               totalPages: _viewerTotalPages,
               isLoadingPages: _isLoadingPages,
+              isResolvingInitialPage: _isRestoringProgress && _pendingRestoreProgress != null && _viewerCurrentPage <= 1 && _liveTotalPages > 1,
               onChapterDrawerTap: _showChapterDrawer,
               onThemeSettingsTap: _showThemeSettings,
               context: context,
@@ -1539,25 +1726,22 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
               tempSliderValue: _tempSliderValue,
               pendingJumpProgressFactor: _pendingJumpProgressFactor,
               isRegeneratingLocations: _isRegeneratingLocations,
+              isVppCalibrating: !_isVppLocked && !_vppDisplayTimedOut,
               onHorizontalDragStart: (details) {
                 _dragStartLocalX = details.localPosition.dx;
                 final currentNormalized = _viewerTotalPages > 1 ? (_viewerCurrentPage - 1) / (_viewerTotalPages - 1) : 0.0;
-                log('🔬[SLIDER:START] localX=${details.localPosition.dx} currentPage=$_viewerCurrentPage total=$_viewerTotalPages live=$_liveTotalPages normalized=$currentNormalized pendingBefore=$_pendingJumpProgressFactor');
                 setState(() {
                   _isProgressLongPressed = true;
                   _pendingJumpProgressFactor = null;
                   _dragStartValue = currentNormalized.clamp(0.0, 1.0);
                   _tempSliderValue = _dragStartValue;
                 });
-                log('🔬[SLIDER:START:STATE] dragStart=$_dragStartValue temp=$_tempSliderValue pending=$_pendingJumpProgressFactor longPressed=$_isProgressLongPressed');
               },
               onHorizontalDragUpdate: (details) {
                 final RenderBox box = context.findRenderObject() as RenderBox;
                 final localX = details.localPosition.dx;
                 final delta = (localX - _dragStartLocalX) / box.size.width;
                 final percentage = (_dragStartValue + delta).clamp(0.0, 1.0);
-                final debugPage = _viewerTotalPages > 1 ? (percentage * (_viewerTotalPages - 1) + 1).round().clamp(1, _viewerTotalPages) : 1;
-                log('🔬[SLIDER:UPDATE] localX=$localX delta=$delta dragStart=$_dragStartValue -> percentage=$percentage page=$debugPage viewer=$_viewerCurrentPage/$_viewerTotalPages pending=$_pendingJumpProgressFactor');
                 setState(() {
                   _tempSliderValue = percentage;
                 });
@@ -1565,30 +1749,24 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
               onHorizontalDragEnd: (details) {
                 final effectiveTotalPages = _viewerTotalPages > 1 ? _viewerTotalPages : _liveTotalPages;
                 final draggedProgress = _tempSliderValue.clamp(0.0, 1.0);
-                log('🔬[SLIDER:END] draggedProgress=$draggedProgress effectiveTotal=$effectiveTotalPages viewerBefore=$_viewerCurrentPage/$_viewerTotalPages live=$_liveTotalPages');
                 int? optimisticTargetPage;
                 if (effectiveTotalPages > 1) {
                   // Use same formula as _jumpToPage: page = progress * (total-1) + 1
                   final targetPage = (draggedProgress * (effectiveTotalPages - 1) + 1).round().clamp(1, effectiveTotalPages);
                   optimisticTargetPage = targetPage;
-                  log('🔬[SLIDER:END:TARGET] targetPage=$targetPage currentPage=$_viewerCurrentPage willJump=${targetPage != _viewerCurrentPage}');
                   if (targetPage != _viewerCurrentPage) {
                     _pendingJumpProgressFactor = draggedProgress;
-                    log('🔬[SLIDER:END:PENDING_SET] pending=$_pendingJumpProgressFactor -> jumpTo=$targetPage');
                     _jumpToPage(targetPage);
                   } else {
                     _pendingJumpProgressFactor = null;
-                    log('🔬[SLIDER:END:PENDING_CLEAR] same page selected, cleared pending');
                   }
                 }
                 setState(() {
                   _isProgressLongPressed = false;
                   if (optimisticTargetPage != null && optimisticTargetPage != _viewerCurrentPage) {
                     _viewerCurrentPage = optimisticTargetPage;
-                    log('🔬[SLIDER:END:OPTIMISTIC_PAGE] viewerCurrentPage -> $_viewerCurrentPage');
                   }
                 });
-                log('🔬[SLIDER:END:STATE] longPressed=$_isProgressLongPressed pending=$_pendingJumpProgressFactor temp=$_tempSliderValue');
               },
             ),
             if (!_showControls && !_isLoadingPages)

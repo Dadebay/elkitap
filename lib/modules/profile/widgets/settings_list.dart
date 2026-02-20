@@ -491,7 +491,7 @@ class _SettingsListState extends State<SettingsList> {
           width: 1,
         ),
       ),
-      color: isDark ? Colors.black.withOpacity(0.6) : Colors.white,
+      color: isDark ? Colors.black : Colors.white,
       elevation: 8,
       items: menuItems,
     );

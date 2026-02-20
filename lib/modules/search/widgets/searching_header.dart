@@ -16,10 +16,12 @@ class SearchingHeader extends StatefulWidget {
 
 class _SearchingHeaderState extends State<SearchingHeader> {
   Timer? _debounceTimer;
+  final SearchResultsController controller = Get.find<SearchResultsController>();
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    controller.searchController.text = '';
     super.dispose();
   }
 
@@ -38,8 +40,6 @@ class _SearchingHeaderState extends State<SearchingHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final SearchResultsController controller = Get.find<SearchResultsController>();
-
     return Padding(
       padding: const EdgeInsets.only(top: 16, left: 8),
       child: Row(

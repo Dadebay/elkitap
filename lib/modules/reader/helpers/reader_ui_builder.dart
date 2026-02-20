@@ -143,6 +143,7 @@ class ReaderUIBuilder {
     required int currentPage,
     required int totalPages,
     required bool isLoadingPages,
+    required bool isResolvingInitialPage,
     required VoidCallback onChapterDrawerTap,
     required VoidCallback onThemeSettingsTap,
     required BuildContext context,
@@ -153,6 +154,7 @@ class ReaderUIBuilder {
     required Function(DragUpdateDetails) onHorizontalDragUpdate,
     required Function(DragEndDetails) onHorizontalDragEnd,
     bool isRegeneratingLocations = false,
+    bool isVppCalibrating = false,
   }) {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 350),
@@ -219,7 +221,7 @@ class ReaderUIBuilder {
                             color: theme.buttonBackgroundColor,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: (isLoadingPages || isRegeneratingLocations)
+                          child: (isLoadingPages || isRegeneratingLocations || isResolvingInitialPage || isVppCalibrating)
                               ? const Center(
                                   child: SizedBox(
                                     width: 16,
@@ -375,19 +377,9 @@ class ReaderUIBuilder {
           // Clean up chapter title - remove extra whitespace and newlines
           final cleanTitle = (chapter.title ?? chapterTitle).trim().replaceAll(RegExp(r'\s+'), ' ');
           displayChapterTitle = cleanTitle;
-          print('🔍 Page $displayPage → $cleanTitle (starts at $startPage, href: ${chapter.href})');
           break;
         }
       }
-      if (displayChapterTitle == chapterTitle) {
-        print('⚠️ No matching chapter found for page $displayPage (total chapters: ${chapters.length}, mapped: ${chapterPages.length})');
-        // Debug: print all chapter pages
-        chapterPages.forEach((href, page) {
-          print('  📖 $href → page $page');
-        });
-      }
-    } else {
-      print('⚠️ Chapter lookup failed - chapters: ${chapters.length}, chapterPages: ${chapterPages.length}');
     }
 
     return Positioned(

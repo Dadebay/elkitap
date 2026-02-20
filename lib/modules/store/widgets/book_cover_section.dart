@@ -87,7 +87,8 @@ class BookCoverSection extends StatelessWidget {
     return Obx(() {
       double progress = 0.0;
       if (controller.progress.value != null) {
-        progress = (double.tryParse(controller.progress.value!) ?? 0.0) / 100;
+        final rawProgress = double.tryParse(controller.progress.value!) ?? 0.0;
+        progress = rawProgress > 1.0 ? (rawProgress / 100.0) : rawProgress;
       }
 
       return Center(

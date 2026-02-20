@@ -190,6 +190,14 @@ class _DownloadedEpubReaderScreenState extends State<DownloadedEpubReaderScreen>
 
   Future<void> _handleClose() async {
     try {
+      // Force-save current position when VPP never locked during this session.
+      if (_controller.currentPage.value == 0) {
+        final effectiveTotal = _viewerTotalPages > 1 ? _viewerTotalPages : _liveTotalPages;
+        if (effectiveTotal > 1 && _viewerCurrentPage > 0) {
+          log('💾 Pre-close force save (VPP never locked): page $_viewerCurrentPage / $effectiveTotal');
+          _controller.onPageFlip(_viewerCurrentPage, effectiveTotal);
+        }
+      }
       await _controller.saveProgressAndClose();
     } catch (e) {
       // Ignore close errors

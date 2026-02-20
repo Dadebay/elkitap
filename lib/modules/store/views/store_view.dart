@@ -23,6 +23,34 @@ class StoreViewScreen extends StatefulWidget {
 class _StoreViewScreenState extends State<StoreViewScreen> {
   int selectedTab = 0;
 
+  GetAllBooksController _getOrCreateBooksController(String tag) {
+    if (Get.isRegistered<GetAllBooksController>(tag: tag)) {
+      return Get.find<GetAllBooksController>(tag: tag);
+    }
+    return Get.put(GetAllBooksController(), tag: tag);
+  }
+
+  AllGenresController _getOrCreateGenresController() {
+    if (Get.isRegistered<AllGenresController>()) {
+      return Get.find<AllGenresController>();
+    }
+    return Get.put(AllGenresController());
+  }
+
+  BookCollectionController _getOrCreateCollectionsController() {
+    if (Get.isRegistered<BookCollectionController>()) {
+      return Get.find<BookCollectionController>();
+    }
+    return Get.put(BookCollectionController());
+  }
+
+  ProfessionalReadsController _getOrCreateProfessionalReadsController() {
+    if (Get.isRegistered<ProfessionalReadsController>()) {
+      return Get.find<ProfessionalReadsController>();
+    }
+    return Get.put(ProfessionalReadsController());
+  }
+
   BoxDecoration _gradientDecoration(BuildContext context) {
     return BoxDecoration(
       gradient: LinearGradient(
@@ -37,11 +65,11 @@ class _StoreViewScreenState extends State<StoreViewScreen> {
     await Future.delayed(const Duration(seconds: 1));
 
     final isAudioMode = selectedTab == 1;
-    Get.find<GetAllBooksController>(tag: 'featured_books_$selectedTab').refreshBooks();
-    Get.find<GetAllBooksController>(tag: 'top_of_week_$selectedTab').refreshBooks();
-    Get.find<AllGenresController>().refreshGenres(withAudio: isAudioMode);
-    Get.find<BookCollectionController>().refreshCollections(isAudioMode: isAudioMode);
-    Get.find<ProfessionalReadsController>().refreshProfessionalReads(isAudioMode: isAudioMode);
+    _getOrCreateBooksController('featured_books_$selectedTab').refreshBooks();
+    _getOrCreateBooksController('top_of_week_$selectedTab').refreshBooks();
+    _getOrCreateGenresController().refreshGenres(withAudio: isAudioMode);
+    _getOrCreateCollectionsController().refreshCollections(isAudioMode: isAudioMode);
+    _getOrCreateProfessionalReadsController().refreshProfessionalReads(isAudioMode: isAudioMode);
   }
 
   @override
@@ -65,7 +93,7 @@ class _StoreViewScreenState extends State<StoreViewScreen> {
                       });
                       // Refresh genres when tab changes
                       final isAudioMode = index == 1;
-                      Get.find<AllGenresController>().refreshGenres(withAudio: isAudioMode);
+                      _getOrCreateGenresController().refreshGenres(withAudio: isAudioMode);
                     },
                   ),
                   if (selectedTab == 0) ...[

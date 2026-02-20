@@ -314,7 +314,7 @@ class AudioPlayerController extends GetxController {
         final response = await _networkManager!.post(
           ApiEndpoints.bookProgress(currentBookId.value),
           body: {
-            'progress': (formattedProgress * 100).toInt(),
+            'progress': formattedProgress,
           },
           sendToken: true,
         );
