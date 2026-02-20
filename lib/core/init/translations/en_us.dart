@@ -589,4 +589,12 @@ final Map<String, String> enUS = {
   'status_completed': 'Completed',
   'status_rejected': 'Rejected',
   'reason': 'Reason',
+
+  // Audio download
+  'audiobook_downloaded_successfully': 'Audiobook downloaded successfully',
+  'failed_to_download_audiobook': 'Failed to download audiobook: @error',
+  'cancel_download': 'Cancel Download',
+  'cancel_download_confirmation': 'Are you sure you want to cancel the download?',
+  'download_cancelled': 'Download cancelled',
+  'download_in_progress': 'Download in progress',
 };

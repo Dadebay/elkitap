@@ -28,12 +28,6 @@ class GetAllBooksController extends GetxController {
   final NetworkManager _networkManager = Get.find<NetworkManager>();
 
   @override
-  @override
-  void onClose() {
-    super.onClose();
-  }
-
-  @override
   void onInit() {
     super.onInit();
   }
@@ -108,7 +102,10 @@ class GetAllBooksController extends GetxController {
       if (withAudio.value != null) {
         queryParameters['with_audio'] = withAudio.value.toString();
       }
-
+      print(recommended.value.obs);
+      print(ApiEndpoints.allBooks);
+      print(queryParameters);
+      print(ApiEndpoints.allBooks);
       final response = await _networkManager.get(
         ApiEndpoints.allBooks,
         sendToken: true,
@@ -223,6 +220,7 @@ class GetAllBooksController extends GetxController {
     await fetchBooks(
       recommendedFilter: true,
       resetPagination: true,
+      genreIdFilter: genreId.value,
     );
   }
 

@@ -32,11 +32,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: CustomAppBar(
         title: '',
         showBackButton: true,
         leadingText: 'leading_text'.tr,
+        backgroundColor: isDark ? Color(0xff181818) : Colors.white,
       ),
       body: Obx(() => _authController.isLoading.value
           ? const Center(child: LoadingWidget(removeBackWhite: true))
@@ -47,8 +51,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 32, right: 32, bottom: 24),
+                    Container(
+                      width: double.infinity,
+                      color: isDark ? Color(0xff181818) : Colors.white,
+                      padding: const EdgeInsets.only(left: 32, right: 32, bottom: 10),
                       child: Text(
                         "profile".tr,
                         style: const TextStyle(
@@ -58,8 +64,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                    Container(
+                      color: isDark ? Colors.black : Colors.white,
+                      // margin: EdgeInsets.only(top: 15),
+                      padding: const EdgeInsets.symmetric(horizontal: 24).copyWith(top: 15, bottom: 10),
                       child: Obx(() {
                         final user = _authController.currentUser.value;
 

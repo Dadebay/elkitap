@@ -9,6 +9,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/data/network/network_manager.dart';
 import 'package:elkitap/modules/audio_player/services/audio_handler.dart';
+import 'package:elkitap/modules/library/controllers/downloaded_controller.dart';
+import 'package:elkitap/core/config/secure_file_storage_service.dart';
 import 'package:elkitap/main.dart' show audioHandler;
 
 class AudioPlayerController extends GetxController {
@@ -114,6 +116,48 @@ class AudioPlayerController extends GetxController {
     loadAudio(url, false);
   }
 
+  Future<void> _loadAudioSource(String hlsUrl, int bookId) async {
+    try {
+      if (Get.isRegistered<DownloadController>()) {
+        final downloadCtrl = Get.find<DownloadController>();
+        final downloadedBook = downloadCtrl.downloadedBooks.firstWhereOrNull(
+          (book) => book.id == bookId.toString() && book.isAudio,
+        );
+
+        if (downloadedBook != null) {
+          final storageService = Get.find<SecureFileStorageService>();
+          final localFile = await storageService.getRawAudioFile(downloadedBook.fileName);
+
+          if (localFile != null && await localFile.exists()) {
+            log('🎵 Playing from local offline file: ${localFile.path}');
+            await loadAudio(
+              localFile.path,
+              false,
+              title: currentBookTitle.value,
+              artist: currentBookAuthor.value,
+              artUri: currentBookCover.value.isNotEmpty ? Uri.parse(currentBookCover.value) : null,
+            );
+            return;
+          } else {
+            log('⚠️ Downloaded audiobook found but local file not accessible');
+          }
+        }
+      }
+    } catch (e) {
+      log('⚠️ Error checking for downloaded audiobook: $e');
+    }
+
+    // Fallback to HLS streaming
+    log('🎵 Playing from HLS URL (online streaming): $hlsUrl');
+    await loadAudio(
+      hlsUrl,
+      false,
+      title: currentBookTitle.value,
+      artist: currentBookAuthor.value,
+      artUri: currentBookCover.value.isNotEmpty ? Uri.parse(currentBookCover.value) : null,
+    );
+  }
+
   // Load audio with book information
   Future<void> loadBookAudio({
     required String hlsUrl,
@@ -123,9 +167,10 @@ class AudioPlayerController extends GetxController {
     required int bookId,
     double? initialProgress,
   }) async {
-    if (currentBookId.value == bookId && audioSource.value == hlsUrl) {
-      return;
-    }
+    // Only skip reload when already playing from a local file for this book.
+    // If the cached source is the HLS URL, always re-check for a local download.
+    final alreadyLocal = currentBookId.value == bookId && audioSource.value.isNotEmpty && !audioSource.value.startsWith('http');
+    if (alreadyLocal) return;
 
     _hasRestoredProgress = false;
 
@@ -134,15 +179,7 @@ class AudioPlayerController extends GetxController {
     currentBookCover.value = bookCover;
     currentBookId.value = bookId;
 
-    // Load audio with full metadata → iOS Now Playing picks this up automatically
-    final artUri = bookCover.isNotEmpty ? Uri.parse(bookCover) : null;
-    await loadAudio(
-      hlsUrl,
-      false,
-      title: bookTitle,
-      artist: bookAuthor,
-      artUri: artUri,
-    );
+    await _loadAudioSource(hlsUrl, bookId);
 
     final savedProgress = _getLocalProgress(bookId);
 

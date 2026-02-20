@@ -61,11 +61,18 @@ class AudioTopBar extends StatelessWidget {
   Widget _buildDownloadButton() {
     return Obx(() {
       final downloadCtrl = Get.find<DownloadController>();
-      final isDownloaded = downloadCtrl.downloadedBooks
-          .any((book) => book.id == bookId.toString() && book.isAudio);
+      final isDownloaded = downloadCtrl.downloadedBooks.any((book) => book.id == bookId.toString() && book.isAudio);
+      final isLoading = downloadCtrl.isLoading.value;
+      final progress = downloadCtrl.downloadProgress.value;
 
       return GestureDetector(
         onTap: () async {
+          if (isLoading) {
+            // Show cancel confirmation dialog
+            _showCancelDownloadDialog(downloadCtrl);
+            return;
+          }
+
           if (bookId == null || hlsUrl == null) {
             AppSnackbar.error('cannot_download_missing_info'.tr);
             return;
@@ -73,6 +80,11 @@ class AudioTopBar extends StatelessWidget {
 
           if (isDownloaded) {
             AppSnackbar.info('audiobook_already_downloaded'.tr);
+            return;
+          }
+
+          // Prevent duplicate downloads
+          if (downloadCtrl.isLoading.value) {
             return;
           }
 
@@ -88,18 +100,146 @@ class AudioTopBar extends StatelessWidget {
             // Error already handled
           }
         },
-        child: CustomIcon(
-          title: isDownloaded
-              ? IconConstants.a14
-              : (downloadCtrl.isLoading.value
-                  ? IconConstants.a9
-                  : IconConstants.a13),
-          height: 30,
-          width: 30,
-          color: isDownloaded ? Colors.green : Colors.white,
-        ),
+        child: isLoading
+            ? SizedBox(
+                height: 30,
+                width: 30,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      // Indeterminate when encrypting (progress == 1.0)
+                      value: progress > 0 && progress < 1.0 ? progress : null,
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                      backgroundColor: Colors.white24,
+                    ),
+                    if (progress > 0)
+                      Text(
+                        '${(progress * 100).toInt()}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
+              )
+            : CustomIcon(
+                title: isDownloaded ? IconConstants.a14 : IconConstants.a13,
+                height: 30,
+                width: 30,
+                color: Colors.white,
+              ),
       );
     });
+  }
+
+  void _showCancelDownloadDialog(DownloadController downloadCtrl) {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.warning_rounded,
+                  color: Colors.orange.shade700,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              Text(
+                'cancel_download'.tr,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+
+              // Message
+              Text(
+                'cancel_download_confirmation'.tr,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        'no'.tr,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        downloadCtrl.cancelDownload();
+                        Get.back();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'yes'.tr,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
   }
 
   Widget _buildMoreButton(BuildContext context) {
@@ -111,8 +251,7 @@ class AudioTopBar extends StatelessWidget {
           if (bookDetailController != null) {
             DialogUtils.showAudioPopupMenu(context, bookDetailController!);
           } else {
-            AppSnackbar.info('book_details_not_available'.tr,
-                duration: const Duration(seconds: 2));
+            AppSnackbar.info('book_details_not_available'.tr, duration: const Duration(seconds: 2));
           }
         },
       ),

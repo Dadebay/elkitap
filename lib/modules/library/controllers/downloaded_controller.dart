@@ -2,12 +2,14 @@
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import 'package:elkitap/core/config/secure_file_storage_service.dart';
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/data/network/network_manager.dart';
 import 'package:elkitap/data/network/token_managet.dart';
 import 'package:elkitap/modules/library/model/book_download_model.dart';
+import 'package:elkitap/utils/hls_downloader.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -26,6 +28,8 @@ class DownloadController extends GetxController {
   final RxList<String> selectedBooks = <String>[].obs;
   final RxBool isGridView = true.obs;
   final RxBool isAudio = false.obs;
+
+  CancelToken? _currentCancelToken;
 
   @override
   void onInit() {
@@ -91,13 +95,38 @@ class DownloadController extends GetxController {
     required String author,
     required String hlsUrl,
   }) async {
+    // Prevent multiple simultaneous downloads
+    if (isLoading.value) {
+      AppSnackbar.info('download_in_progress'.tr);
+      return;
+    }
+
     try {
       if (await _isBookDownloaded(bookId, isAudio: true)) {
         throw Exception('Audiobook already downloaded');
       }
 
       isLoading.value = true;
+      downloadProgress.value = 0.0;
+      _currentCancelToken = CancelToken();
+
+      final hlsDownloader = HlsDownloader();
+      final audioBytes = await hlsDownloader.downloadHlsSegments(
+        hlsUrl,
+        onProgress: (progress) => downloadProgress.value = progress,
+        cancelToken: _currentCancelToken,
+      );
+
       final fileName = 'audio_${bookId}_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Encryption disabled — save raw audio for direct offline playback
+      // final result = await _storageService.saveEncryptedAudio(fileName, audioBytes);
+      final result = await _storageService.saveRawAudio(fileName, audioBytes);
+
+      if (!result['success']) {
+        throw Exception(result['error']);
+      }
+
       final download = BookDownload(
         id: bookId,
         title: bookTitle,
@@ -105,9 +134,9 @@ class DownloadController extends GetxController {
         fileName: fileName,
         coverUrl: imageUrl,
         downloadDate: DateTime.now(),
-        fileSize: 0,
-        hash: '',
-        encryptedPath: '',
+        fileSize: result['size'],
+        hash: result['hash'],
+        encryptedPath: result['path'],
         isAudio: true,
         hlsUrl: hlsUrl,
       );
@@ -117,12 +146,37 @@ class DownloadController extends GetxController {
       // Update list
       await loadDownloadedBooks();
 
-      AppSnackbar.success('audiobook_saved_successfully'.tr);
+      AppSnackbar.success('audiobook_downloaded_successfully'.tr);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) {
+        AppSnackbar.info('download_cancelled'.tr);
+      } else {
+        AppSnackbar.error('failed_to_download_audiobook'.trParams({'error': e.toString()}));
+        rethrow;
+      }
     } catch (e) {
-      AppSnackbar.error('failed_to_save_audiobook'.trParams({'error': e.toString()}));
+      AppSnackbar.error('failed_to_download_audiobook'.trParams({'error': e.toString()}));
       rethrow;
     } finally {
       isLoading.value = false;
+      downloadProgress.value = 0.0;
+      _currentCancelToken = null;
+    }
+  }
+
+  /// Cancel ongoing download
+  void cancelDownload() {
+    try {
+      if (_currentCancelToken != null && !_currentCancelToken!.isCancelled) {
+        _currentCancelToken!.cancel('User cancelled download');
+      }
+    } catch (e) {
+      print('Error cancelling download: $e');
+    } finally {
+      // Always reset state
+      _currentCancelToken = null;
+      isLoading.value = false;
+      downloadProgress.value = 0.0;
     }
   }
 
@@ -360,12 +414,15 @@ class DownloadController extends GetxController {
     final book = downloadedBooks.firstWhereOrNull((b) => b.id == bookId);
     if (book == null) return;
 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) {
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.dialogBackgroundColor,
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 32,
             vertical: 24,
@@ -386,7 +443,7 @@ class DownloadController extends GetxController {
                     borderRadius: BorderRadius.circular(6),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: theme.shadowColor.withOpacity(0.15),
                         blurRadius: 5,
                         offset: const Offset(2, 2),
                       ),
@@ -405,18 +462,20 @@ class DownloadController extends GetxController {
                     children: [
                       TextSpan(
                         text: book.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontFamily: StringConstants.SFPro,
                           fontSize: 17,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       TextSpan(
                         text: 'remove_this_book_from_downloads_q'.tr,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontFamily: StringConstants.SFPro,
                           fontSize: 17,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -436,7 +495,7 @@ class DownloadController extends GetxController {
                   },
                   style: TextButton.styleFrom(
                     minimumSize: const Size.fromHeight(50),
-                    backgroundColor: Colors.grey.shade200,
+                    backgroundColor: colorScheme.surfaceContainerHighest,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -444,7 +503,7 @@ class DownloadController extends GetxController {
                   child: Text(
                     'remove_button_t'.tr,
                     style: TextStyle(
-                      color: Colors.red.withOpacity(0.6),
+                      color: colorScheme.error.withOpacity(0.8),
                       fontSize: 18,
                       fontFamily: StringConstants.SFPro,
                       fontWeight: FontWeight.w600,
@@ -462,9 +521,9 @@ class DownloadController extends GetxController {
                   ),
                   child: Text(
                     'cancel_button_t'.tr,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
-                      color: Colors.black,
+                      color: colorScheme.onSurface,
                       fontFamily: StringConstants.SFPro,
                       fontWeight: FontWeight.w500,
                     ),

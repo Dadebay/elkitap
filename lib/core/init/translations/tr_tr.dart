@@ -595,4 +595,12 @@ final Map<String, String> trTR = {
   'status_completed': 'Tamamlandy',
   'status_rejected': 'Ret edildi',
   'reason': 'Sebäbi',
+
+  // Audio download
+  'audiobook_downloaded_successfully': 'Audiokitap üstünlikli ýüklendi',
+  'failed_to_download_audiobook': 'Audiokitap ýüklenende ýalňyşlyk: @error',
+  'cancel_download': 'Ýüklemäni ýatyrmak',
+  'cancel_download_confirmation': 'Ýüklemäni ýatyrmak isleýärsiňizmi?',
+  'download_cancelled': 'Ýüklemek ýatyryldy',
+  'download_in_progress': 'Ýüklemek dowam edýär',
 };

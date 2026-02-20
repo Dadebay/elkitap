@@ -4,7 +4,28 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+// Top-level functions required by compute() — run in a background isolate
+
+Uint8List _decryptBytesIsolate(Map<String, dynamic> params) {
+  final encryptedBytes = params['bytes'] as Uint8List;
+  final key = Key(params['key'] as Uint8List);
+  final iv = IV(params['iv'] as Uint8List);
+  final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
+  return Uint8List.fromList(
+    encrypter.decryptBytes(Encrypted(encryptedBytes), iv: iv),
+  );
+}
+
+Uint8List _encryptBytesIsolate(Map<String, dynamic> params) {
+  final fileBytes = params['bytes'] as Uint8List;
+  final key = Key(params['key'] as Uint8List);
+  final iv = IV(params['iv'] as Uint8List);
+  final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
+  return encrypter.encryptBytes(fileBytes, iv: iv).bytes;
+}
 
 class EncryptionService {
   // Secure storage for encryption key
@@ -56,15 +77,17 @@ class EncryptionService {
       final key = await _getEncryptionKey();
       final iv = await _getIV();
 
-      // Create encrypter
-      final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
-
-      // Encrypt data
-      final encrypted = encrypter.encryptBytes(fileBytes, iv: iv);
+      // Run CPU-intensive AES encryption in a background isolate so the
+      // UI thread is not blocked (especially important for large audio files).
+      final encryptedBytes = await compute(_encryptBytesIsolate, {
+        'bytes': fileBytes,
+        'key': key.bytes,
+        'iv': iv.bytes,
+      });
 
       // Write encrypted data to file
       final outputFile = File(outputPath);
-      await outputFile.writeAsBytes(encrypted.bytes);
+      await outputFile.writeAsBytes(encryptedBytes);
 
       return outputFile;
     } catch (e) {
@@ -82,16 +105,13 @@ class EncryptionService {
       final key = await _getEncryptionKey();
       final iv = await _getIV();
 
-      // Create encrypter
-      final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
-
-      // Decrypt data
-      final decrypted = encrypter.decryptBytes(
-        Encrypted(encryptedBytes),
-        iv: iv,
-      );
-
-      return Uint8List.fromList(decrypted);
+      // Run CPU-intensive AES decryption in a background isolate so the
+      // UI thread is not blocked (especially important for large audio files).
+      return await compute(_decryptBytesIsolate, {
+        'bytes': encryptedBytes,
+        'key': key.bytes,
+        'iv': iv.bytes,
+      });
     } catch (e) {
       throw Exception('Decryption failed: $e');
     }

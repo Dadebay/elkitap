@@ -1,4 +1,5 @@
 // secure_file_storage_service.dart
+import 'dart:developer';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:elkitap/core/config/encript_service.dart';
@@ -97,6 +98,43 @@ class SecureFileStorageService {
     }
   }
 
+  // Save raw (unencrypted) audio file for offline playback
+  Future<Map<String, dynamic>> saveRawAudio(
+    String fileName,
+    Uint8List audioBytes,
+  ) async {
+    try {
+      final dir = await audioDirectory;
+      final file = File('${dir.path}/$fileName.aac');
+      await file.writeAsBytes(audioBytes);
+      return {
+        'success': true,
+        'path': file.path,
+        'hash': '',
+        'size': audioBytes.length,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  // Get raw audio file for playback (no decryption needed)
+  Future<File?> getRawAudioFile(String fileName) async {
+    try {
+      final dir = await audioDirectory;
+      for (final ext in ['.aac', '.mp3', '.m4a']) {
+        final file = File('${dir.path}/$fileName$ext');
+        if (await file.exists()) return file;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Read and decrypt EPUB file
   Future<Map<String, dynamic>> readDecryptedEpub(String fileName) async {
     try {
@@ -127,17 +165,26 @@ class SecureFileStorageService {
       final dir = await audioDirectory;
       final encryptedPath = '${dir.path}/$fileName.encrypted';
 
+      log('🔓 Decrypting audio: $encryptedPath');
+      final encryptedFile = File(encryptedPath);
+      if (!await encryptedFile.exists()) {
+        throw Exception('Encrypted audio file not found');
+      }
+      log('🔓 Encrypted file exists, size: ${await encryptedFile.length()} bytes');
+
       // Decrypt file
       final decryptedBytes = await _encryptionService.readAndDecryptAudio(
         encryptedPath,
       );
 
+      log('✅ Audio decrypted successfully, size: ${decryptedBytes.length} bytes');
       return {
         'success': true,
         'data': decryptedBytes,
         'size': decryptedBytes.length,
       };
     } catch (e) {
+      log('❌ Failed to decrypt audio: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -317,16 +364,12 @@ class SecureFileStorageService {
     }
   }
 
-  // Export decrypted Audio to temp (for playback)
+  /// Export decrypted audio to temp directory with caching support
   Future<File?> exportDecryptedAudioToTemp(String fileName) async {
     try {
-      final result = await readDecryptedAudio(fileName);
+      log('🎵 Exporting decrypted audio to temp: $fileName');
 
-      if (!result['success']) {
-        return null;
-      }
-
-      // Create temporary file with audio extension
+      // Determine temp file name/path before decrypting so we can cache-check.
       final tempDir = await getTemporaryDirectory();
       final tempFileName = fileName.endsWith('.m4a')
           ? fileName
@@ -335,16 +378,35 @@ class SecureFileStorageService {
               : '$fileName.m4a'; // Default to m4a for HLS audio
       final tempFile = File('${tempDir.path}/$tempFileName');
 
-      // Delete if exists
+      // Reuse cached temp file when the encrypted source hasn't changed.
       if (await tempFile.exists()) {
-        await tempFile.delete();
+        final dir = await audioDirectory;
+        final encryptedPath = '${dir.path}/$fileName.encrypted';
+        final encryptedFile = File(encryptedPath);
+        if (await encryptedFile.exists()) {
+          final tempStat = await tempFile.stat();
+          final encStat = await encryptedFile.stat();
+          if (tempStat.modified.isAfter(encStat.modified)) {
+            log('✅ Using cached temp audio file');
+            return tempFile;
+          }
+        }
+      }
+
+      final result = await readDecryptedAudio(fileName);
+
+      if (!result['success']) {
+        log('❌ Failed to decrypt audio for temp export');
+        return null;
       }
 
       // Write decrypted data
       await tempFile.writeAsBytes(result['data']);
+      log('✅ Temp audio file written: ${tempFile.path} (${result['size']} bytes)');
 
       return tempFile;
     } catch (e) {
+      log('❌ exportDecryptedAudioToTemp error: $e');
       return null;
     }
   }

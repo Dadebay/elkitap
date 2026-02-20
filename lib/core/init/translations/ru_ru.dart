@@ -600,4 +600,12 @@ final Map<String, String> ruRU = {
   'status_completed': 'Завершено',
   'status_rejected': 'Отклонено',
   'reason': 'Причина',
+
+  // Audio download
+  'audiobook_downloaded_successfully': 'Аудиокнига успешно загружена',
+  'failed_to_download_audiobook': 'Ошибка загрузки аудиокниги: @error',
+  'cancel_download': 'Отменить загрузку',
+  'cancel_download_confirmation': 'Вы уверены, что хотите отменить загрузку?',
+  'download_cancelled': 'Загрузка отменена',
+  'download_in_progress': 'Загрузка в процессе',
 };

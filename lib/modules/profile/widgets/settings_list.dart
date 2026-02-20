@@ -121,7 +121,10 @@ class _SettingsListState extends State<SettingsList> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      color: isDark ? Colors.black : Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

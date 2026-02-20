@@ -2,6 +2,7 @@ import 'dart:async';
 
 // import 'package:firebase_analytics/firebase_analytics.dart';
 
+import 'package:elkitap/core/config/secure_file_storage_service.dart';
 import 'package:elkitap/core/init/firebase_messaging_service.dart';
 import 'package:elkitap/core/init/local_notifications_service.dart';
 import 'package:elkitap/core/init/theme_controller.dart';
@@ -67,6 +68,7 @@ final class ApplicationInitialize {
       await GetStorage.init();
       Get.put(TokenManager(), permanent: true);
       Get.put(NetworkManager(), permanent: true);
+      Get.put(SecureFileStorageService(), permanent: true);
       Get.put(TranslationService(), permanent: true);
       Get.put(ThemeController(), permanent: true);
       Get.put(FcmController(), permanent: true);

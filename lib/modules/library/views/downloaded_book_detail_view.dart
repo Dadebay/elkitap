@@ -9,8 +9,7 @@ import 'package:elkitap/modules/audio_player/views/audio_player_view.dart';
 import 'package:elkitap/modules/library/controllers/downloaded_controller.dart';
 import 'package:elkitap/modules/library/model/book_download_model.dart';
 import 'package:elkitap/modules/reader/controllers/reader_controller.dart';
-import 'package:elkitap/modules/reader/views/reader_view.dart';
-import 'package:elkitap/modules/store/model/book_item_model.dart';
+import 'package:elkitap/modules/reader/views/downloaded_reader_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
@@ -79,28 +78,9 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
 
       if (!mounted) return;
 
-      final rawId = textBook!.id;
-      final split = rawId.split('_t');
-      final baseBookId = split.first;
-      final parsedTranslateId = split.length > 1 ? int.tryParse(split.last) : null;
-
-      final parsedBookId = int.tryParse(baseBookId) ?? int.tryParse(widget.bookId) ?? 0;
-      final parsedAuthor = textBook!.author.trim().isEmpty ? 'Unknown' : textBook!.author;
-
-      final book = Book(
-        id: parsedBookId,
-        name: textBook!.title,
-        image: textBook!.coverUrl,
-        authors: [BookAuthor(id: 0, name: parsedAuthor)],
-      );
-
-      await Get.to(() => EpubReaderScreen(
-            imageUrl: textBook!.coverUrl ?? '',
-            bookDescription: '',
-            bookId: parsedBookId.toString(),
-            book: book,
-            translateId: parsedTranslateId,
-            localFilePath: tempPath,
+      await Get.to(() => DownloadedEpubReaderScreen(
+            bookDownload: textBook!,
+            decryptedFilePath: tempPath,
           ));
     } catch (e) {
       AppSnackbar.error('Failed to open book: $e', duration: const Duration(seconds: 4));
@@ -137,10 +117,13 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
     }
 
     // Both versions exist - show options
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.dialogBackgroundColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -151,34 +134,50 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
             children: [
               Text(
                 'delete_options'.tr,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   fontFamily: StringConstants.SFPro,
+                  color: colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 20),
               ListTile(
-                leading: const Icon(Icons.book_outlined),
-                title: Text('delete_text_version'.tr),
+                leading: Icon(
+                  Icons.book_outlined,
+                  color: colorScheme.onSurface,
+                ),
+                title: Text(
+                  'delete_text_version'.tr,
+                  style: TextStyle(color: colorScheme.onSurface),
+                ),
                 onTap: () {
                   Get.back();
                   downloadCtrl.deleteDownload(widget.bookId, isAudio: false);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.headphones_outlined),
-                title: Text('delete_audio_version'.tr),
+                leading: Icon(
+                  Icons.headphones_outlined,
+                  color: colorScheme.onSurface,
+                ),
+                title: Text(
+                  'delete_audio_version'.tr,
+                  style: TextStyle(color: colorScheme.onSurface),
+                ),
                 onTap: () {
                   Get.back();
                   downloadCtrl.deleteDownload(widget.bookId, isAudio: true);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                leading: Icon(
+                  Icons.delete_outline,
+                  color: colorScheme.error,
+                ),
                 title: Text(
                   'delete_both_versions'.tr,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(color: colorScheme.error),
                 ),
                 onTap: () async {
                   Get.back();
@@ -190,7 +189,10 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
               const SizedBox(height: 10),
               TextButton(
                 onPressed: () => Get.back(),
-                child: Text('cancel_button_t'.tr),
+                child: Text(
+                  'cancel_button_t'.tr,
+                  style: TextStyle(color: colorScheme.primary),
+                ),
               ),
             ],
           ),
@@ -437,7 +439,7 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
                 // Show info for both versions if available
                 if (hasText) ...[
                   const SizedBox(height: 8),
-                  _buildDownloadInfo(textBook!),
+                  _buildDownloadInfo(context, textBook!),
                   if (hasAudio) const SizedBox(height: 16),
                 ],
 
@@ -452,13 +454,13 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
                           fontSize: 14,
                           fontFamily: StringConstants.SFPro,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _buildDownloadInfo(audioBook!),
+                  _buildDownloadInfo(context, audioBook!),
                 ],
 
                 const SizedBox(height: 50),
@@ -470,7 +472,9 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
     );
   }
 
-  Widget _buildDownloadInfo(BookDownload book) {
+  Widget _buildDownloadInfo(BuildContext context, BookDownload book) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         Padding(
@@ -483,15 +487,16 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
                 style: TextStyle(
                   fontSize: 15,
                   fontFamily: StringConstants.SFPro,
-                  color: Colors.grey[600],
+                  color: colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
               Text(
                 '${book.downloadDate.day}/${book.downloadDate.month}/${book.downloadDate.year}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontFamily: StringConstants.SFPro,
                   fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],
@@ -508,15 +513,16 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
                 style: TextStyle(
                   fontSize: 15,
                   fontFamily: StringConstants.SFPro,
-                  color: Colors.grey[600],
+                  color: colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
               Text(
                 book.isAudio ? 'Streaming' : '${(book.fileSize / (1024 * 1024)).toStringAsFixed(2)} MB',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontFamily: StringConstants.SFPro,
                   fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],
