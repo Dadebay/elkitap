@@ -92,7 +92,7 @@ class _TabItem extends StatelessWidget {
           const SizedBox(height: 4),
           Container(
             height: 1.5,
-            width: text.length * 12.0,
+            width: text.length * 13.0,
             decoration: BoxDecoration(
               color: isSelected ? Colors.grey[300] : Colors.transparent,
               borderRadius: BorderRadius.circular(2),
