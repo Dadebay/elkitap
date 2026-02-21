@@ -9,7 +9,7 @@ import 'package:elkitap/modules/audio_player/views/audio_player_view.dart';
 import 'package:elkitap/modules/library/controllers/downloaded_controller.dart';
 import 'package:elkitap/modules/library/model/book_download_model.dart';
 import 'package:elkitap/modules/reader/controllers/reader_controller.dart';
-import 'package:elkitap/modules/reader/views/downloaded_reader_view.dart';
+import 'package:elkitap/modules/reader/views/reader_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
@@ -78,9 +78,11 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
 
       if (!mounted) return;
 
-      await Get.to(() => DownloadedEpubReaderScreen(
-            bookDownload: textBook!,
-            decryptedFilePath: tempPath,
+      await Get.to(() => EpubReaderScreen(
+            imageUrl: textBook!.coverUrl ?? '',
+            bookDescription: '',
+            bookId: textBook!.id,
+            localFilePath: tempPath,
           ));
     } catch (e) {
       AppSnackbar.error('Failed to open book: $e', duration: const Duration(seconds: 4));

@@ -13,6 +13,9 @@ class ReaderUIBuilder {
     required VoidCallback onClose,
     required VoidCallback onMenuTap,
   }) {
+    // Get the actual background color from epubTheme
+    final backgroundColor = (theme.epubTheme.backgroundDecoration as BoxDecoration?)?.color ?? theme.backgroundColor;
+
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
@@ -28,8 +31,8 @@ class ReaderUIBuilder {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                theme.backgroundColor,
-                theme.backgroundColor.withOpacity(0.0),
+                backgroundColor,
+                backgroundColor.withOpacity(0.0),
               ],
             ),
           ),
@@ -156,6 +159,9 @@ class ReaderUIBuilder {
     bool isRegeneratingLocations = false,
     bool isVppCalibrating = false,
   }) {
+    // Get the actual background color from epubTheme
+    final backgroundColor = (theme.epubTheme.backgroundDecoration as BoxDecoration?)?.color ?? theme.backgroundColor;
+
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
@@ -173,8 +179,8 @@ class ReaderUIBuilder {
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      theme.backgroundColor,
-                      theme.backgroundColor.withOpacity(0.0),
+                      backgroundColor,
+                      backgroundColor.withOpacity(0.0),
                     ],
                   ),
                 ),

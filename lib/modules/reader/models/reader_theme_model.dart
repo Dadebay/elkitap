@@ -38,6 +38,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'SFPro',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: Colors.white,
@@ -57,6 +59,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'NewYork',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: const Color(0xFF4a4a4c),
@@ -76,6 +80,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'NewYork',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: const Color(0xFFf0eced),
@@ -95,6 +101,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'SFPro',
           'font-weight': 'bold',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: const Color(0xFFFAFAFA),
@@ -114,6 +122,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'NewYork',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: const Color(0xFff5ebda),
@@ -133,6 +143,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'NewYork',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: const Color(0xFFfffcf4),
@@ -155,6 +167,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'SFPro',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: Colors.black,
@@ -174,6 +188,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'NewYork',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: Colors.black,
@@ -193,6 +209,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'NewYork',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: const Color(0xFF1c1c1d),
@@ -212,6 +230,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'SFPro',
           'font-weight': 'bold',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: Colors.black,
@@ -231,6 +251,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'NewYork',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: const Color(0xFF423c30),
@@ -250,6 +272,8 @@ class ReaderThemeModel {
         customCss: {
           'font-family': 'NewYork',
           'font-weight': '400',
+          'padding-top': '40px',
+          'padding-bottom': '40px',
         },
       ),
       backgroundColor: const Color(0xFF18160d),

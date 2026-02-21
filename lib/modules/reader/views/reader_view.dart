@@ -154,11 +154,24 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       overlays: SystemUiOverlay.values,
     );
 
+    // Use theme colors if initialized, otherwise use safe defaults
+    final Color backgroundColor;
+    final Brightness iconBrightness;
+
+    if (_hasInitializedReaderTheme) {
+      backgroundColor = _currentTheme.backgroundColor;
+      iconBrightness = _currentTheme.isDark ? Brightness.light : Brightness.dark;
+    } else {
+      // Default to black for initial state
+      backgroundColor = Colors.black;
+      iconBrightness = Brightness.light;
+    }
+
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        systemNavigationBarColor: Colors.black,
-        systemNavigationBarDividerColor: Colors.black,
-        systemNavigationBarIconBrightness: Brightness.light,
+      SystemUiOverlayStyle(
+        systemNavigationBarColor: backgroundColor,
+        systemNavigationBarDividerColor: backgroundColor,
+        systemNavigationBarIconBrightness: iconBrightness,
         systemNavigationBarContrastEnforced: false,
       ),
     );
@@ -257,7 +270,10 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     log("   Translate ID: ${widget.translateId}");
     log("   uniqueBookId: $_uniqueBookId");
 
-    controller.initialize(bookId: int.parse(widget.bookId));
+    // Extract numeric book ID (handle downloaded books with format "1241_t1647")
+    final numericBookId = widget.bookId.contains('_') ? int.parse(widget.bookId.split('_').first) : int.parse(widget.bookId);
+
+    controller.initialize(bookId: numericBookId);
 
     // Safety watchdog: if VPP never locks, force dismiss the loading overlay so
     // the user isn't stuck staring at a spinner forever.
@@ -315,6 +331,9 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       if (_isReaderReady) {
         _viewerController.updateTheme(theme: _currentTheme.epubTheme);
       }
+
+      // Update system UI style for new theme
+      _applyReaderSystemUiStyle();
     }
   }
 
@@ -363,7 +382,10 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       } else {
         log('   Fetching book detail and progress in parallel...');
 
-        final bookDetailFuture = detailController.fetchBookDetail(int.parse(widget.bookId));
+        // Extract numeric book ID (handle downloaded books with format "1241_t1647")
+        final numericBookId = widget.bookId.contains('_') ? int.parse(widget.bookId.split('_').first) : int.parse(widget.bookId);
+
+        final bookDetailFuture = detailController.fetchBookDetail(numericBookId);
         final progressFuture = detailController.fetchProgress();
 
         await Future.wait([
@@ -882,8 +904,11 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   void _setLastOpenedBook() {
     Book? bookToSave = widget.book;
     if (bookToSave == null) {
+      // Extract numeric book ID (handle downloaded books with format "1241_t1647")
+      final searchBookId = widget.bookId.contains('_') ? widget.bookId.split('_').first : widget.bookId;
+
       bookToSave = allBooksController.books.firstWhereOrNull(
-        (b) => b.id.toString() == widget.bookId,
+        (b) => b.id.toString() == searchBookId,
       );
     }
 
@@ -1129,6 +1154,9 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       _userHasManuallySelectedTheme = true; // Mark that user has manually selected a theme
     });
     _viewerController.updateTheme(theme: theme.epubTheme);
+
+    // Update system UI style for new theme
+    _applyReaderSystemUiStyle();
   }
 
   void _onFontSizeChanged(int size) {
@@ -1436,23 +1464,21 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   }
 
   Widget _buildReaderView() {
+    print('📖 Building reader view (ready=$_isReaderReady, loadingPages=$_isLoadingPages, displayPages=$_viewerTotalPages color:${_currentTheme.backgroundColor}, livePages=$_liveTotalPages)');
     return WillPopScope(
       onWillPop: () async {
         await _handleClose();
         return false;
       },
       child: Scaffold(
-        // backgroundColor: _currentTheme.backgroundColor,
         resizeToAvoidBottomInset: false,
+        backgroundColor: (_currentTheme.epubTheme.backgroundDecoration as BoxDecoration?)?.color ?? _currentTheme.backgroundColor,
         body: Stack(
           children: [
             RepaintBoundary(
               child: Container(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).viewPadding.top + 40,
-                  bottom: 20,
-                ),
-                decoration: _currentTheme.epubTheme.backgroundDecoration,
+                padding: EdgeInsets.only(top: MediaQuery.of(context).viewPadding.top + 40, bottom: MediaQuery.of(context).viewPadding.bottom + 40),
+                color: (_currentTheme.epubTheme.backgroundDecoration as BoxDecoration?)?.color ?? _currentTheme.backgroundColor,
                 child: epub.EpubViewer(
                   key: _epubViewerKey,
                   epubController: _viewerController,
