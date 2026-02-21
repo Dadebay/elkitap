@@ -41,8 +41,12 @@
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>This app needs Bluetooth access to connect to audio devices for audiobook playback</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app needs Bluetooth access to connect to audio devices for audiobook playback</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access to scan promo codes</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app may need microphone access for audio-related features</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

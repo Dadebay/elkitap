@@ -6,26 +6,43 @@ class BluetoothAudioHelper: NSObject {
     
     private let audioSession = AVAudioSession.sharedInstance()
     
-    /// Get currently connected audio output devices (AirPods, Bluetooth headphones, etc.)
+    /// Configure audio session to detect Bluetooth devices
+    private func configureAudioSession() {
+        do {
+            // Configure with full Bluetooth routing support (output + input)
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            NSLog("[BluetoothAudioHelper] Audio session configured for Bluetooth")
+        } catch {
+            NSLog("[BluetoothAudioHelper] Failed to configure audio session: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Get the currently active audio output route (all types: iPhone speaker, AirPods, BT headphones, etc.)
     func getConnectedAudioDevices() -> [[String: String]] {
+        // NOTE: Do NOT call configureAudioSession() here — it would override just_audio's session
         var devices: [[String: String]] = []
         
         let currentRoute = audioSession.currentRoute
-        for output in currentRoute.outputs {
+        
+        NSLog("[BluetoothAudioHelper] === Current Audio Route Outputs ===")
+        NSLog("[BluetoothAudioHelper] Total outputs: \(currentRoute.outputs.count)")
+        
+        for (index, output) in currentRoute.outputs.enumerated() {
             let portType = output.portType
+            NSLog("[BluetoothAudioHelper] Output[\(index)]: \(output.portName) | Type: \(portType.rawValue) | UID: \(output.uid)")
             
-            // Check for Bluetooth audio devices
-            if portType == .bluetoothA2DP || portType == .bluetoothHFP || portType == .bluetoothLE {
-                devices.append([
-                    "name": output.portName,
-                    "address": output.uid,
-                    "profile": portType.rawValue
-                ])
-                NSLog("[BluetoothAudioHelper] Found connected audio device: \(output.portName) (\(output.uid)) - \(portType.rawValue)")
-            }
+            // Return ALL output types so the popup always shows the current route
+            let isBluetooth = portType == .bluetoothA2DP || portType == .bluetoothHFP || portType == .bluetoothLE
+            devices.append([
+                "name": output.portName,
+                "address": output.uid,
+                "profile": portType.rawValue,
+                "isBluetooth": isBluetooth ? "true" : "false"
+            ])
         }
         
-        NSLog("[BluetoothAudioHelper] Total connected audio devices: \(devices.count)")
+        NSLog("[BluetoothAudioHelper] Returning \(devices.count) audio output device(s)")
         return devices
     }
     
@@ -63,7 +80,7 @@ class BluetoothAudioHelper: NSObject {
         NSLog("[BluetoothAudioHelper] Attempting to disconnect audio device: \(uid)")
         
         do {
-            try audioSession.setCategory(.playback, mode: .default, options: [])
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers])
             try audioSession.overrideOutputAudioPort(.speaker)
             try audioSession.setActive(true)
             NSLog("[BluetoothAudioHelper] Audio routed to speaker (disconnected from Bluetooth)")
@@ -79,7 +96,7 @@ class BluetoothAudioHelper: NSObject {
         NSLog("[BluetoothAudioHelper] Attempting to connect audio device: \(uid)")
         
         do {
-            try audioSession.setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
             try audioSession.overrideOutputAudioPort(.none)
             try audioSession.setActive(true)
             
@@ -104,6 +121,9 @@ class BluetoothAudioHelper: NSObject {
     
     /// Get all available Bluetooth audio devices (paired and in range)
     func getAvailableBluetoothDevices() -> [[String: String]] {
+        // Configure audio session first to ensure Bluetooth devices are detected
+        configureAudioSession()
+        
         var devices: [[String: String]] = []
         
         // Check current route outputs
