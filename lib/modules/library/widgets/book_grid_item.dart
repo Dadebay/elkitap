@@ -12,6 +12,7 @@ import 'package:get/get.dart';
 
 class BookGridItem extends StatefulWidget {
   final Book book;
+  final bool isAudio;
   final ReadingListController controller;
   final double? discountPercentage;
 
@@ -19,6 +20,7 @@ class BookGridItem extends StatefulWidget {
     super.key,
     required this.book,
     required this.controller,
+    required this.isAudio,
     this.discountPercentage,
   });
 
@@ -35,7 +37,10 @@ class _BookGridItemState extends State<BookGridItem> {
           widget.controller.toggleSelection(widget.book.id.toString());
           setState(() {});
         } else {
-          Get.to(() => BookDetailView(book: widget.book));
+          Get.to(() => BookDetailView(
+                book: widget.book,
+                isAudio: widget.isAudio,
+              ));
         }
       },
       onLongPress: () {
@@ -52,7 +57,7 @@ class _BookGridItemState extends State<BookGridItem> {
             Stack(
               children: [
                 Container(
-                  height: widget.book.image!.isNotEmpty ? 190 : 150,
+                  height: widget.isAudio ? 150 : 195,
                   width: 150,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
@@ -95,9 +100,9 @@ class _BookGridItemState extends State<BookGridItem> {
                     }
 
                     return OptimizedImage(
-                      imageUrl: '${ApiEndpoints.imageBaseUrl}$imageToUse',
+                      imageUrl: widget.isAudio ? '${ApiEndpoints.imageBaseUrl}${widget.book.audioImage}' : '${ApiEndpoints.imageBaseUrl}$imageToUse',
                       width: 150,
-                      height: widget.book.image!.isNotEmpty ? 220 : 150,
+                      height: widget.isAudio ? 150 : 220,
                       fit: BoxFit.fill,
                       placeholder: Container(
                         color: Colors.grey[100],
@@ -197,7 +202,7 @@ class _BookGridItemState extends State<BookGridItem> {
                         fontFamily: StringConstants.SFPro,
                         fontSize: 14,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                     ),

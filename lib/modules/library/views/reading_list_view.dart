@@ -74,7 +74,7 @@ class ReadingListScreen extends StatelessWidget {
               ),
               Expanded(
                 child: Obx(() {
-                  return controller.isGridView.value ? GridViewWidget(controller: controller) : ListViewWidget(controller: controller);
+                  return controller.isGridView.value ? GridViewWidget(controller: controller, isAudio: type == 'listen') : ListViewWidget(controller: controller);
                 }),
               ),
             ],

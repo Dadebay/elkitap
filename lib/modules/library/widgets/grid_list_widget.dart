@@ -6,35 +6,34 @@ import 'package:get/get.dart';
 
 class GridViewWidget extends StatelessWidget {
   final ReadingListController controller;
+  final bool isAudio;
 
-  const GridViewWidget({super.key, required this.controller});
+  const GridViewWidget({super.key, required this.controller, required this.isAudio});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Obx(() => GridView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 0.55,
-            ),
-            itemCount: controller.books.length,
-            itemBuilder: (context, index) {
-              return AnimatedGridItem(
-                index: index,
-                child: BookGridItem(
-                  book: controller.books[index],
-                  controller: controller,
-                  discountPercentage: (double.tryParse(controller.books[index].progress ?? '0') ?? 0.0) / 100,
-                ),
-              );
-            },
-          )),
-    );
+    return Obx(() => GridView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: isAudio ? 0.78 : 0.64,
+          ),
+          itemCount: controller.books.length,
+          itemBuilder: (context, index) {
+            return AnimatedGridItem(
+              index: index,
+              child: BookGridItem(
+                book: controller.books[index],
+                controller: controller,
+                isAudio: isAudio,
+                discountPercentage: (double.tryParse(controller.books[index].progress ?? '0') ?? 0.0) / 100,
+              ),
+            );
+          },
+        ));
   }
 }
 

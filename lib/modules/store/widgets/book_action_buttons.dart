@@ -90,29 +90,62 @@ class BookActionButtons extends StatelessWidget {
 
     if (hasText) {
       final AuthController authController = Get.find<AuthController>();
-      final isSubscribed =
-          authController.currentUser.value?.subscription?.isActive ?? false;
+      final isSubscribed = authController.currentUser.value?.subscription?.isActive ?? false;
 
       if (isSubscribed) {
         log("isSubscribed");
-        return ReadDownloadButton(
-          controller: controller,
-          book: bookDetail,
-          accent: color,
-          borderRadius: borderRadius,
-          showProgress: showProgress,
-          progressText: progressText,
-        );
-      } else {
-        log("notSubscribed");
-        if (paymentController.isPaymentActive.value) {
-          return ReadDownloadButton(
+
+        // Print progress information when read button is tapped
+        return GestureDetector(
+          onTap: () {
+            final progressValue = controller.bookDetail.value?.progress;
+            final progressPercent = controller.getProgressPercentage();
+
+            log('📚 ═══════════════════════════════════════════════════════');
+            log('📖 READ BUTTON TAPPED');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            log('📊 Book Progress Information:');
+            log('   • Book ID: $bookId');
+            log('   • Progress: $progressPercent');
+            log('   • Raw Progress Value: ${progressValue ?? "0"}');
+            log('   • Show Progress: $showProgress');
+            log('═══════════════════════════════════════════════════════');
+          },
+          child: ReadDownloadButton(
             controller: controller,
             book: bookDetail,
             accent: color,
             borderRadius: borderRadius,
             showProgress: showProgress,
             progressText: progressText,
+          ),
+        );
+      } else {
+        log("notSubscribed");
+        if (paymentController.isPaymentActive.value) {
+          return GestureDetector(
+            onTap: () {
+              final progressValue = controller.bookDetail.value?.progress;
+              final progressPercent = controller.getProgressPercentage();
+
+              log('📚 ═══════════════════════════════════════════════════════');
+              log('📖 READ BUTTON TAPPED');
+              log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+              log('📊 Book Progress Information:');
+              log('   • Book ID: $bookId');
+              log('   • Progress: $progressPercent');
+              log('   • Raw Progress Value: ${progressValue ?? "0"}');
+              log('   • Show Progress: $showProgress');
+              log('═══════════════════════════════════════════════════════');
+            },
+            child: ReadDownloadButton(
+              controller: controller,
+              book: bookDetail,
+              accent: color,
+              borderRadius: borderRadius,
+              showProgress: showProgress,
+              progressText: progressText,
+            ),
           );
         }
         return GestureDetector(
@@ -143,7 +176,7 @@ class BookActionButtons extends StatelessWidget {
       height: 50,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.3),
+        color: Colors.grey.withValues(alpha: 0.3),
         borderRadius: borderRadius,
       ),
       child: Center(
@@ -172,8 +205,7 @@ class BookActionButtons extends StatelessWidget {
     final AuthController authController = Get.find<AuthController>();
 
     // Subscription Check
-    final isSubscribed =
-        authController.currentUser.value?.subscription?.isActive ?? false;
+    final isSubscribed = authController.currentUser.value?.subscription?.isActive ?? false;
 
     return GestureDetector(
       onTap: hasAudio
@@ -196,7 +228,7 @@ class BookActionButtons extends StatelessWidget {
         height: 50,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: hasAudio ? color : Colors.grey.withOpacity(0.3),
+          color: hasAudio ? color : Colors.grey.withValues(alpha: 0.3),
           borderRadius: borderRadius,
         ),
         child: Center(
@@ -228,11 +260,9 @@ class BookActionButtons extends StatelessWidget {
     return Obx(() {
       final aiDescription = controller.getCurrentTranslate()?.aiDescription;
       // Check if AI description exists and is not empty or just whitespace
-      final hasAiDescription =
-          aiDescription != null && aiDescription.trim().isNotEmpty;
+      final hasAiDescription = aiDescription != null && aiDescription.trim().isNotEmpty;
 
-      print(
-          '🤖 AI Button Check - hasAiDescription: $hasAiDescription, length: ${aiDescription?.length ?? 0}');
+      print('🤖 AI Button Check - hasAiDescription: $hasAiDescription, length: ${aiDescription?.length ?? 0}');
 
       if (!hasAiDescription) {
         return const SizedBox();
@@ -251,9 +281,7 @@ class BookActionButtons extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              image: const DecorationImage(
-                  image: AssetImage('assets/images/bg1.png'),
-                  fit: BoxFit.cover),
+              image: const DecorationImage(image: AssetImage('assets/images/bg1.png'), fit: BoxFit.cover),
             ),
             alignment: Alignment.center,
             child: Row(

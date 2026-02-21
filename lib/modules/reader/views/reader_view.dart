@@ -1160,32 +1160,36 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   }
 
   void _onFontSizeChanged(int size) {
-    log('╔═══════════════════════════════════════════════════════════╗');
-    log('║  🔤 FONT SIZE CHANGED                                     ║');
-    log('╠═══════════════════════════════════════════════════════════╣');
-    log('║  Old Size:  $_fontSize                                     ║');
-    log('║  New Size:  $size                                          ║');
-    log('║  Status:    Resetting VPP & regenerating locations...     ║');
-    log('╚═══════════════════════════════════════════════════════════╝');
-
-    setState(() {
-      _fontSize = size;
-      _isRegeneratingLocations = true;
-      _isAwaitingFontVppRecalibration = true;
-      _isLoadingPages = true;
-      // Reset total pages to show loading spinner until VPP recalibrates
-      _viewerTotalPages = 1;
-      _liveTotalPages = 1;
-      _stableTotalPages = 1;
-      _lastChapterBuildTotalPages = 0;
-      _vppPendingSince = null;
-    });
-
+    // Cancel any pending font size change
     _fontSizeDebounceTimer?.cancel();
-    _fontSizeDebounceTimer = Timer(const Duration(milliseconds: 220), () {
+
+    // Start new debounce timer
+    _fontSizeDebounceTimer = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      log('📤 Applying debounced font size: $_fontSize');
-      _viewerController.setFontSize(fontSize: _fontSize.toDouble());
+
+      log('╔═══════════════════════════════════════════════════════════╗');
+      log('║  🔤 FONT SIZE CHANGED                                     ║');
+      log('╠═══════════════════════════════════════════════════════════╣');
+      log('║  Old Size:  $_fontSize                                     ║');
+      log('║  New Size:  $size                                          ║');
+      log('║  Status:    Resetting VPP & regenerating locations...     ║');
+      log('╚═══════════════════════════════════════════════════════════╝');
+
+      setState(() {
+        _fontSize = size;
+        _isRegeneratingLocations = true;
+        _isAwaitingFontVppRecalibration = true;
+        _isLoadingPages = true;
+        // Reset total pages to show loading spinner until VPP recalibrates
+        _viewerTotalPages = 1;
+        _liveTotalPages = 1;
+        _stableTotalPages = 1;
+        _lastChapterBuildTotalPages = 0;
+        _vppPendingSince = null;
+      });
+
+      log('📤 Applying debounced font size: $size');
+      _viewerController.setFontSize(fontSize: size.toDouble());
     });
   }
 
