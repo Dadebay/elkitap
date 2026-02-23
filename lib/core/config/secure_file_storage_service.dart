@@ -125,6 +125,10 @@ class SecureFileStorageService {
   Future<File?> getRawAudioFile(String fileName) async {
     try {
       final dir = await audioDirectory;
+      // New format: directory containing index.m3u8 (local HLS)
+      final m3u8 = File('${dir.path}/$fileName/index.m3u8');
+      if (await m3u8.exists()) return m3u8;
+      // Legacy format: single concatenated file
       for (final ext in ['.aac', '.mp3', '.m4a']) {
         final file = File('${dir.path}/$fileName$ext');
         if (await file.exists()) return file;

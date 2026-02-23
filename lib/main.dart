@@ -20,6 +20,7 @@ import 'package:audio_service/audio_service.dart';
 
 // Packages
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -31,6 +32,12 @@ late ElkitapAudioHandler audioHandler;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isIOS) {
+    final imageCache = PaintingBinding.instance.imageCache;
+    imageCache.maximumSize = 100;
+    imageCache.maximumSizeBytes = 40 << 20; // 40 MB
+  }
 
   // Initialize AudioService FIRST — before any controller is created,
   // so audioHandler is ready when AudioPlayerController.onInit() runs.

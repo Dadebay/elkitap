@@ -31,8 +31,7 @@ class _TopOfWeekSectionState extends State<TopOfWeekSection> {
   @override
   void initState() {
     super.initState();
-    controller =
-        Get.put(GetAllBooksController(), tag: 'top_of_week_${widget.tabIndex}');
+    controller = Get.put(GetAllBooksController(), tag: 'top_of_week_${widget.tabIndex}');
     pageController = PageController(viewportFraction: 0.85);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.searchBooksWithFilters(
@@ -45,10 +44,7 @@ class _TopOfWeekSectionState extends State<TopOfWeekSection> {
       if (!pageController.hasClients) return;
       final currentPage = pageController.page?.round() ?? 0;
       final totalPages = (controller.books.length / 3).ceil();
-      if (currentPage >= totalPages - 2 &&
-          currentPage != lastPage &&
-          !controller.isLoadingMore.value &&
-          controller.hasMore.value) {
+      if (currentPage >= totalPages - 2 && currentPage != lastPage && !controller.isLoadingMore.value && controller.hasMore.value) {
         lastPage = currentPage;
         controller.loadMoreBooks();
       }
@@ -61,13 +57,12 @@ class _TopOfWeekSectionState extends State<TopOfWeekSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding:
-              const EdgeInsets.only(left: 28, right: 32, bottom: 12, top: 40),
+          padding: const EdgeInsets.only(left: 28, right: 32, bottom: 12, top: 40),
           child: GestureDetector(
             onTap: () {
+              // Don't pass id for home page - we want all top of week books without genre filter
               Get.to(() => BooksGridScreen(
                     title: "top_of_the_week_t".tr,
-                    id: 0,
                     isWeekly: true,
                     isAudio: widget.tabIndex == 1,
                   ));

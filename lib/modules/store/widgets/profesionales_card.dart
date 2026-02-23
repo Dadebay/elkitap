@@ -206,6 +206,8 @@ class ProfessionalCard extends StatelessWidget {
               'assets/images/shelf.png',
               height: 18,
               fit: BoxFit.cover,
+              cacheWidth: 512,
+              filterQuality: FilterQuality.low,
             ),
           ),
         ],

@@ -96,8 +96,9 @@ class _DownloadedBookDetailViewState extends State<DownloadedBookDetailView> {
           bookTitle: audioBook!.title,
           bookAuthor: audioBook!.author,
           bookCover: audioBook!.coverUrl,
-          hlsUrl: audioBook!.hlsUrl,
+          hlsUrl: audioBook!.hlsUrl ?? '',
           bookId: int.tryParse(audioBook!.id),
+          forceOffline: true, // Opened from DownloadedListScreen → always play local file
         ));
     globalMiniCtrl.hide();
   }

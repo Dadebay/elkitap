@@ -150,6 +150,8 @@ class ProfileCard extends StatelessWidget {
                 'assets/images/shelf.png',
                 height: 9,
                 fit: BoxFit.cover,
+                cacheWidth: 512,
+                filterQuality: FilterQuality.low,
               ),
             ),
           ),

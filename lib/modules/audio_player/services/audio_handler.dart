@@ -52,8 +52,11 @@ class ElkitapAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandle
 
   Future<void> loadUrl(String url, MediaItem item) async {
     mediaItem.add(item);
+    // Local file paths must use Uri.file() to get the file:// scheme.
+    // Uri.parse('/var/mobile/...') produces a schemeless URI that AVPlayer rejects with -1002.
+    final uri = url.startsWith('/') ? Uri.file(url) : Uri.parse(url);
     await _player.setAudioSource(
-      AudioSource.uri(Uri.parse(url), tag: item),
+      AudioSource.uri(uri, tag: item),
     );
   }
 

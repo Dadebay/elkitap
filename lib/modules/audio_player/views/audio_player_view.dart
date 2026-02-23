@@ -22,6 +22,9 @@ class AudiobookPlayerScreen extends StatelessWidget {
   final int? bookId;
   final double? initialProgress;
 
+  /// true → opened from DownloadedListScreen, always play local file
+  final bool forceOffline;
+
   const AudiobookPlayerScreen({
     Key? key,
     this.bookTitle,
@@ -30,6 +33,7 @@ class AudiobookPlayerScreen extends StatelessWidget {
     this.hlsUrl,
     this.bookId,
     this.initialProgress,
+    this.forceOffline = false,
   }) : super(key: key);
 
   @override
@@ -41,8 +45,7 @@ class AudiobookPlayerScreen extends StatelessWidget {
     if (bookId != null) {
       final controllerTag = bookId.toString();
       if (Get.isRegistered<BooksDetailController>(tag: controllerTag)) {
-        bookDetailController =
-            Get.find<BooksDetailController>(tag: controllerTag);
+        bookDetailController = Get.find<BooksDetailController>(tag: controllerTag);
       } else {
         bookDetailController = Get.put(
           BooksDetailController(),
@@ -67,6 +70,7 @@ class AudiobookPlayerScreen extends StatelessWidget {
           bookCover: bookCover ?? '',
           bookId: bookId ?? 0,
           initialProgress: initialProgress,
+          forceOffline: forceOffline,
         );
       });
     }
@@ -102,8 +106,7 @@ class AudiobookPlayerScreen extends StatelessWidget {
                     AudioPlaybackControls(),
                     AudioBottomControls(
                       onSpeedTap: () => SpeedPopup.show(context, controller),
-                      onSleepTimerTap: () =>
-                          SleepTimerPopup.show(context, controller),
+                      onSleepTimerTap: () => SleepTimerPopup.show(context, controller),
                       onBluetoothTap: () => BluetoothPopup.show(context),
                       onDriverModeTap: () {
                         controller.enableDriverMode();

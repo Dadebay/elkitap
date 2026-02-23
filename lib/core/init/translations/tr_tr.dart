@@ -557,6 +557,8 @@ final Map<String, String> trTR = {
   'scanning_for_devices': 'Enjamlar gözlenilýär...',
   'no_devices_found': 'Enjam tapylmady',
   'bluetooth_check_settings': 'Bluetooth-yň açykdygyny\nwe enjamlaryň golaýdadygyny barlaň',
+  'iphone_speaker': 'iPhone gürleýji',
+  'choose_audio_output': 'Audio çykyşy saýlaň',
   'available_language': 'Elýeterli diller',
   'login_title': 'Ulgama Girmek',
   'premium_feature_t': 'Premium aýratynlyk',

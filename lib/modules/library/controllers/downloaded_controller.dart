@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:developer';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
@@ -11,6 +12,7 @@ import 'package:elkitap/data/network/token_managet.dart';
 import 'package:elkitap/modules/library/model/book_download_model.dart';
 import 'package:elkitap/utils/hls_downloader.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
@@ -102,6 +104,20 @@ class DownloadController extends GetxController {
     }
 
     try {
+      final startedAt = DateTime.now();
+      log('[AUDIO-DL] ===== DOWNLOAD START =====');
+      log('[AUDIO-DL] Platform=${Platform.operatingSystem}');
+      log('[AUDIO-DL] bookId=$bookId');
+      log('[AUDIO-DL] hlsUrl=$hlsUrl');
+
+      if (Platform.isIOS) {
+        final imageCache = PaintingBinding.instance.imageCache;
+        log('[AUDIO-DL] iOS pre-download image cache: currentSize=${imageCache.currentSize}, currentSizeBytes=${imageCache.currentSizeBytes}');
+        imageCache.clear();
+        imageCache.clearLiveImages();
+        log('[AUDIO-DL] iOS image cache cleared before audio download');
+      }
+
       if (await _isBookDownloaded(bookId, isAudio: true)) {
         throw Exception('Audiobook already downloaded');
       }
@@ -111,40 +127,49 @@ class DownloadController extends GetxController {
       _currentCancelToken = CancelToken();
 
       final hlsDownloader = HlsDownloader();
-      final audioBytes = await hlsDownloader.downloadHlsSegments(
+
+      // Save each segment as a separate .ts file inside a dedicated directory,
+      // then write a local index.m3u8 so iOS AVPlayer can play the full duration.
+      final storageDir = await _storageService.audioDirectory;
+      final dirName = 'audio_${bookId}_${DateTime.now().millisecondsSinceEpoch}';
+      final outputDir = Directory('${storageDir.path}/$dirName');
+      log('[AUDIO-DL] Downloading HLS to dir: ${outputDir.path}');
+
+      final hlsResult = await hlsDownloader.downloadHlsToFile(
         hlsUrl,
+        outputDir: outputDir,
         onProgress: (progress) => downloadProgress.value = progress,
         cancelToken: _currentCancelToken,
       );
 
-      final fileName = 'audio_${bookId}_${DateTime.now().millisecondsSinceEpoch}';
-
-      // Encryption disabled — save raw audio for direct offline playback
-      // final result = await _storageService.saveEncryptedAudio(fileName, audioBytes);
-      final result = await _storageService.saveRawAudio(fileName, audioBytes);
-
-      if (!result['success']) {
-        throw Exception(result['error']);
-      }
+      final fileSizeMb = hlsResult.totalBytes / (1024 * 1024);
+      log('[AUDIO-DL] Download finished, total size: ${fileSizeMb.toStringAsFixed(2)} MB');
+      log('[AUDIO-DL] Local m3u8: ${hlsResult.m3u8File.path}');
 
       final download = BookDownload(
         id: bookId,
         title: bookTitle,
         author: author,
-        fileName: fileName,
+        fileName: dirName,
         coverUrl: imageUrl,
         downloadDate: DateTime.now(),
-        fileSize: result['size'],
-        hash: result['hash'],
-        encryptedPath: result['path'],
+        fileSize: hlsResult.totalBytes,
+        hash: '',
+        encryptedPath: hlsResult.m3u8File.path,
         isAudio: true,
         hlsUrl: hlsUrl,
       );
 
       await _saveDownloadMetadata(download);
+      log('[AUDIO-DL] Metadata saved for bookId=$bookId');
 
       // Update list
       await loadDownloadedBooks();
+      log('[AUDIO-DL] Downloaded books list refreshed');
+
+      final elapsed = DateTime.now().difference(startedAt);
+      log('[AUDIO-DL] Total elapsed: ${elapsed.inSeconds}s');
+      log('[AUDIO-DL] ===== DOWNLOAD END =====');
 
       AppSnackbar.success('audiobook_downloaded_successfully'.tr);
     } on DioException catch (e) {
@@ -155,6 +180,7 @@ class DownloadController extends GetxController {
         rethrow;
       }
     } catch (e) {
+      log('[AUDIO-DL] ❌ Download failed: $e');
       AppSnackbar.error('failed_to_download_audiobook'.trParams({'error': e.toString()}));
       rethrow;
     } finally {
@@ -318,6 +344,25 @@ class DownloadController extends GetxController {
       }
       if (!bookToDelete.isAudio) {
         await _storageService.deleteEncryptedEpub(bookToDelete.fileName);
+      } else {
+        // Audio: encryptedPath is either the local index.m3u8 (new dir-based HLS)
+        // or an old single .aac file. Delete the whole parent directory in both cases.
+        try {
+          final encPath = bookToDelete.encryptedPath;
+          if (encPath.isNotEmpty) {
+            final encFile = File(encPath);
+            final parentDir = encFile.parent;
+            if (await parentDir.exists()) {
+              await parentDir.delete(recursive: true);
+              log('[AUDIO-DL] Deleted audio dir: ${parentDir.path}');
+            } else if (await encFile.exists()) {
+              await encFile.delete();
+              log('[AUDIO-DL] Deleted audio file: ${encPath}');
+            }
+          }
+        } catch (e) {
+          log('[AUDIO-DL] Warning: could not delete audio files: $e');
+        }
       }
 
       downloads.remove(keyToDelete);

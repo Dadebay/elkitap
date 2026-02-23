@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
@@ -14,6 +15,8 @@ class BluetoothController extends GetxController {
   final RxList<BluetoothDevice> bondedDevices = <BluetoothDevice>[].obs;
   final Rx<BluetoothDevice?> connectedDevice = Rx<BluetoothDevice?>(null);
   final Rx<BluetoothDevice?> activeAudioDevice = Rx<BluetoothDevice?>(null);
+  // iOS: maps device address → isBluetooth (false = built-in/AirPlay/wired)
+  final Map<String, bool> iosDeviceProfiles = {};
   final RxBool isScanning = false.obs;
   final RxBool isBluetoothOn = false.obs;
 
@@ -25,6 +28,16 @@ class BluetoothController extends GetxController {
 
   // Native audio channel for A2DP/HFP profile management
   static const _audioChannel = MethodChannel('com.googadev.elkitap/bluetooth_audio');
+
+  /// iOS: Show the native system audio route picker (AirPlay/Bluetooth device selector)
+  Future<void> showIOSAudioRoutePicker() async {
+    try {
+      print('[BT] 🍎 Showing iOS system audio route picker...');
+      await _audioChannel.invokeMethod('showSystemAudioRoutePicker');
+    } catch (e) {
+      print('[BT] ❌ Error showing iOS audio route picker: $e');
+    }
+  }
 
   @override
   void onInit() {
@@ -91,18 +104,20 @@ class BluetoothController extends GetxController {
     try {
       print('[BT] 🍎 Loading iOS audio devices...');
       final List<dynamic> devices = await _audioChannel.invokeMethod('getConnectedAudioDevices');
-      print('[BT] 🍎 Found ${devices.length} connected audio devices');
+      print('[BT] 🍎 Found ${devices.length} audio output device(s)');
 
       bondedDevices.clear();
+      iosDeviceProfiles.clear();
 
       for (var deviceMap in devices) {
         final name = deviceMap['name'] as String? ?? 'Unknown';
         final address = deviceMap['address'] as String? ?? '';
         final profile = deviceMap['profile'] as String? ?? '';
-        print('[BT] 🍎   - $name ($address) [$profile]');
+        final isBluetooth = (deviceMap['isBluetooth'] as String? ?? 'false') == 'true';
+        print('[BT] 🍎   - $name ($address) [$profile] isBT=$isBluetooth');
 
-        // Create a BluetoothDevice-like entry for iOS
-        // We use the address(uid) as identifier
+        iosDeviceProfiles[address] = isBluetooth;
+
         final device = BluetoothDevice(
           name: name,
           address: address,
@@ -112,36 +127,13 @@ class BluetoothController extends GetxController {
         bondedDevices.add(device);
       }
 
-      // Also check available (paired but not connected) Bluetooth devices
-      try {
-        final List<dynamic> availableDevices = await _audioChannel.invokeMethod('getAvailableBluetoothDevices');
-        for (var deviceMap in availableDevices) {
-          final address = deviceMap['address'] as String? ?? '';
-          // Skip if already in the list
-          if (bondedDevices.any((d) => d.address == address)) continue;
-
-          final name = deviceMap['name'] as String? ?? 'Unknown';
-          final device = BluetoothDevice(
-            name: name,
-            address: address,
-            type: BluetoothDeviceType.unknown,
-            bondState: BluetoothBondState.bonded,
-          );
-          bondedDevices.add(device);
-        }
-      } catch (e) {
-        print('[BT] 🍎 getAvailableBluetoothDevices not available: $e');
-      }
-
-      // Auto-detect connected device
-      await _loadActiveAudioDevice();
-
-      // If no saved active device, check what's currently connected
-      if (activeAudioDevice.value == null && devices.isNotEmpty) {
-        final firstDevice = bondedDevices.first;
-        activeAudioDevice.value = firstDevice;
-        await _saveActiveAudioDevice(firstDevice.address);
-        print('[BT] 🍎 Auto-set active audio device: ${firstDevice.name}');
+      // Always show the current system route as the active device
+      if (bondedDevices.isNotEmpty) {
+        activeAudioDevice.value = bondedDevices.first;
+        print('[BT] 🍎 Active audio output: ${bondedDevices.first.name}');
+      } else {
+        activeAudioDevice.value = null;
+        print('[BT] 🍎 No audio output route detected');
       }
     } catch (e) {
       print('[BT] ❌ Error loading iOS audio devices: $e');
@@ -152,20 +144,36 @@ class BluetoothController extends GetxController {
     print('[BT] 🔐 Requesting Bluetooth permissions...');
 
     if (Platform.isAndroid) {
-      final scanStatus = await Permission.bluetoothScan.status;
-      final connectStatus = await Permission.bluetoothConnect.status;
-      final locationStatus = await Permission.location.status;
+      // Get Android SDK version
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+      print('[BT] 📱 Android SDK: $sdkInt');
 
+      List<Permission> permissionsToRequest = [];
+
+      if (sdkInt >= 31) {
+        // Android 12+ (API 31+): Use new Bluetooth permissions
+        permissionsToRequest = [
+          Permission.bluetoothScan,
+          Permission.bluetoothConnect,
+        ];
+      } else {
+        // Android 11 and below: Use legacy Bluetooth + Location
+        permissionsToRequest = [
+          Permission.bluetooth,
+          Permission.location,
+        ];
+      }
+
+      // Check current status
       print('[BT] 📋 Current permissions:');
-      print('[BT]   - bluetoothScan: $scanStatus');
-      print('[BT]   - bluetoothConnect: $connectStatus');
-      print('[BT]   - location: $locationStatus');
+      for (var permission in permissionsToRequest) {
+        final status = await permission.status;
+        print('[BT]   - $permission: $status');
+      }
 
-      Map<Permission, PermissionStatus> statuses = await [
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-        Permission.location,
-      ].request();
+      // Request permissions
+      Map<Permission, PermissionStatus> statuses = await permissionsToRequest.request();
 
       print('[BT] 📋 After request:');
       statuses.forEach((permission, status) {
@@ -274,6 +282,16 @@ class BluetoothController extends GetxController {
       return;
     }
 
+    // Request permissions FIRST (before checking Bluetooth state)
+    print('[BT] 🔐 Checking permissions FIRST...');
+    final hasPermission = await requestPermissions();
+    if (!hasPermission) {
+      print('[BT] ❌ Permissions NOT granted');
+      AppSnackbar.error('bluetooth_scan_permission'.tr, title: 'permission_denied'.tr);
+      return;
+    }
+    print('[BT] ✅ Permissions granted');
+
     if (!isBluetoothOn.value) {
       print('[BT] ❌ Bluetooth is OFF - requesting to enable...');
       try {
@@ -292,16 +310,6 @@ class BluetoothController extends GetxController {
       }
     }
     print('[BT] ✅ Bluetooth is ON');
-
-    // Request permissions
-    print('[BT] 🔐 Checking permissions...');
-    final hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      print('[BT] ❌ Permissions NOT granted');
-      AppSnackbar.error('bluetooth_scan_permission'.tr, title: 'permission_denied'.tr);
-      return;
-    }
-    print('[BT] ✅ Permissions granted');
 
     try {
       print('[BT] 🗑️ Clearing scannedDevices list');

@@ -84,13 +84,23 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
       await booksController.getMyBooks();
     } else if (widget.recommended) {
       if (widget.isAudio) {
-        await booksController.searchBooksWithFilters(recommendedFilter: true, withAudioFilter: true, genreIdFilter: widget.id);
+        // Only pass genreIdFilter if id > 0 (specific genre), otherwise fetch all recommended audiobooks
+        await booksController.searchBooksWithFilters(
+          recommendedFilter: true,
+          withAudioFilter: true,
+          genreIdFilter: (widget.id != null && widget.id! > 0) ? widget.id : null,
+        );
       } else {
         await booksController.getRecommendedBooks();
       }
     } else if (widget.isWeekly) {
       if (widget.isAudio) {
-        await booksController.searchBooksWithFilters(topOfTheWeekFilter: true, withAudioFilter: true, genreIdFilter: widget.id);
+        // Only pass genreIdFilter if id > 0 (specific genre), otherwise fetch all top of week audiobooks
+        await booksController.searchBooksWithFilters(
+          topOfTheWeekFilter: true,
+          withAudioFilter: true,
+          genreIdFilter: (widget.id != null && widget.id! > 0) ? widget.id : null,
+        );
       } else {
         await booksController.getTopOfTheWeekBooks();
       }
@@ -184,7 +194,7 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    childAspectRatio: widget.isAudio ? 0.70 : 0.65,
+                    childAspectRatio: widget.isAudio ? 0.78 : 0.65,
                   ),
                   itemBuilder: (context, index) {
                     final book = booksController.books[index];

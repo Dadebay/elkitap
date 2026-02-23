@@ -47,7 +47,8 @@ class FeaturedBooksSection extends StatelessWidget {
                 const SizedBox(height: 4),
                 GestureDetector(
                   onTap: () {
-                    Get.to(() => BooksGridScreen(title: "we_recommend_t".tr, id: 0, recommended: true, isAudio: tabIndex == 1));
+                    // Don't pass id for home page - we want all recommended books without genre filter
+                    Get.to(() => BooksGridScreen(title: "we_recommend_t".tr, recommended: true, isAudio: tabIndex == 1));
                   },
                   child: Text(
                     "we_recommend_t".tr,

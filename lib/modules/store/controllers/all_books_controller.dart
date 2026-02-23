@@ -235,6 +235,13 @@ class GetAllBooksController extends GetxController {
     );
   }
 
+  Future<void> getHomePageAudioBooks() async {
+    await fetchBooks(
+      recommendedFilter: true,
+      resetPagination: true,
+    );
+  }
+
   Future<void> getBooksWantToRead() async {
     await fetchBooks(
       wantsToFilter: 'read',

@@ -556,6 +556,8 @@ final Map<String, String> enUS = {
   'scanning_for_devices': 'Scanning for devices...',
   'no_devices_found': 'No devices found',
   'bluetooth_check_settings': 'Make sure Bluetooth is enabled\nand devices are nearby',
+  'iphone_speaker': 'iPhone Speaker',
+  'choose_audio_output': 'Choose Audio Output',
   'available_language': 'Available Languages',
   'login_title': 'Log In',
   'premium_feature_t': 'Premium Feature',

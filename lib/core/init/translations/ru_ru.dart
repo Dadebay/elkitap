@@ -567,6 +567,8 @@ final Map<String, String> ruRU = {
   'scanning_for_devices': 'Поиск устройств...',
   'no_devices_found': 'Устройства не найдены',
   'bluetooth_check_settings': 'Убедитесь, что Bluetooth включен\nи устройства находятся рядом',
+  'iphone_speaker': 'Динамик iPhone',
+  'choose_audio_output': 'Выберите аудиовыход',
   'available_language': 'Доступные языки',
   'login_title': 'Вход в систему',
   'premium_feature_t': 'Премиум функция',

@@ -2,15 +2,20 @@
 
 import 'dart:async';
 import 'dart:developer';
+// ignore: unused_import
+import 'dart:io'; // needed for RandomAccessFile header read
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:just_audio/just_audio.dart' show ProcessingState;
 import 'package:audio_service/audio_service.dart';
 
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/data/network/network_manager.dart';
+import 'package:elkitap/data/controller/connection_controller.dart';
 import 'package:elkitap/modules/audio_player/services/audio_handler.dart';
 import 'package:elkitap/modules/library/controllers/downloaded_controller.dart';
 import 'package:elkitap/core/config/secure_file_storage_service.dart';
+import 'package:elkitap/utils/local_hls_server.dart';
 import 'package:elkitap/main.dart' show audioHandler;
 
 class AudioPlayerController extends GetxController {
@@ -37,12 +42,18 @@ class AudioPlayerController extends GetxController {
   final RxBool isDriverMode = false.obs;
   final RxString audioSource = ''.obs;
   final RxBool isAssetAudio = true.obs;
+  // true while audio is loading or buffering (hides play button, shows spinner)
+  final RxBool isAudioLoading = false.obs;
 
   // Book data for display
   final RxString currentBookTitle = ''.obs;
   final RxString currentBookAuthor = ''.obs;
   final RxString currentBookCover = ''.obs;
   final RxInt currentBookId = 0.obs;
+
+  /// Local HTTP server for offline HLS playback on iOS.
+  /// iOS AVPlayer cannot play file:// HLS manifests — we serve via localhost.
+  final LocalHlsServer _hlsServer = LocalHlsServer();
 
   Timer? _saveProgressTimer;
   bool _isProgressSaving = false;
@@ -77,6 +88,8 @@ class AudioPlayerController extends GetxController {
 
     _handler.player.playerStateStream.listen((state) {
       isPlaying.value = state.playing;
+      // Show spinner while loading or buffering
+      isAudioLoading.value = state.processingState == ProcessingState.loading || state.processingState == ProcessingState.buffering;
     });
   }
 
@@ -116,38 +129,78 @@ class AudioPlayerController extends GetxController {
     loadAudio(url, false);
   }
 
-  Future<void> _loadAudioSource(String hlsUrl, int bookId) async {
-    try {
-      if (Get.isRegistered<DownloadController>()) {
-        final downloadCtrl = Get.find<DownloadController>();
-        final downloadedBook = downloadCtrl.downloadedBooks.firstWhereOrNull(
-          (book) => book.id == bookId.toString() && book.isAudio,
-        );
+  Future<void> _loadAudioSource(String hlsUrl, int bookId, {bool forceOffline = false}) async {
+    // Decide strategy:
+    // - forceOffline=true  → always play local file (opened from DownloadedListScreen)
+    // - hasConnection=false → no internet, must play local file
+    // - otherwise          → stream HLS online
+    final hasInternet = Get.isRegistered<ConnectionController>() ? Get.find<ConnectionController>().hasConnection.value : true;
 
-        if (downloadedBook != null) {
-          final storageService = Get.find<SecureFileStorageService>();
-          final localFile = await storageService.getRawAudioFile(downloadedBook.fileName);
+    final useOffline = forceOffline || !hasInternet;
 
-          if (localFile != null && await localFile.exists()) {
-            log('🎵 Playing from local offline file: ${localFile.path}');
-            await loadAudio(
-              localFile.path,
-              false,
-              title: currentBookTitle.value,
-              artist: currentBookAuthor.value,
-              artUri: currentBookCover.value.isNotEmpty ? Uri.parse(currentBookCover.value) : null,
-            );
-            return;
-          } else {
-            log('⚠️ Downloaded audiobook found but local file not accessible');
+    if (useOffline) {
+      // Try local file first
+      try {
+        if (Get.isRegistered<DownloadController>()) {
+          final downloadCtrl = Get.find<DownloadController>();
+          final downloadedBook = downloadCtrl.downloadedBooks.firstWhereOrNull(
+            (book) => book.id == bookId.toString() && book.isAudio,
+          );
+
+          if (downloadedBook != null) {
+            // Prefer encryptedPath directly (new format: path to index.m3u8 inside a dir).
+            // Fall back to getRawAudioFile for backward-compat with old single-file downloads.
+            File? localFile;
+            if (downloadedBook.encryptedPath.isNotEmpty) {
+              final candidate = File(downloadedBook.encryptedPath);
+              if (await candidate.exists()) localFile = candidate;
+            }
+            if (localFile == null) {
+              // backward-compat fallback for old .aac single-file downloads
+              final storageService = Get.find<SecureFileStorageService>();
+              localFile = await storageService.getRawAudioFile(downloadedBook.fileName);
+            }
+
+            if (localFile != null && await localFile.exists()) {
+              log('🎵 Local file: ${localFile.path}');
+              log('🎵 Is local HLS: ${localFile.path.endsWith('.m3u8')}');
+
+              String playUrl = localFile.path;
+              // iOS AVPlayer cannot open HLS from file:// — serve via localhost
+              if (localFile.path.endsWith('.m3u8')) {
+                final dir = localFile.parent.path;
+                final baseUrl = await _hlsServer.start(dir);
+                playUrl = '$baseUrl/index.m3u8';
+                log('🎵 Serving local HLS via: $playUrl');
+              } else {
+                // Stop server if it was running for a previous book
+                await _hlsServer.stop();
+              }
+
+              await loadAudio(
+                playUrl,
+                false,
+                title: currentBookTitle.value,
+                artist: currentBookAuthor.value,
+                artUri: currentBookCover.value.isNotEmpty ? Uri.parse(currentBookCover.value) : null,
+              );
+              return;
+            }
           }
         }
+      } catch (e) {
+        log('⚠️ Error loading local audio: $e');
       }
-    } catch (e) {
-      log('⚠️ Error checking for downloaded audiobook: $e');
+
+      // If forceOffline but no local file found, show error
+      if (forceOffline) {
+        log('❌ forceOffline=true but no local file found for bookId=$bookId');
+        return;
+      }
     }
 
-    // Fallback to HLS streaming
+    // Online: stream HLS — stop local server if it was running
+    await _hlsServer.stop();
     log('🎵 Playing from HLS URL (online streaming): $hlsUrl');
     await loadAudio(
       hlsUrl,
@@ -166,11 +219,17 @@ class AudioPlayerController extends GetxController {
     required String bookCover,
     required int bookId,
     double? initialProgress,
+    bool forceOffline = false,
   }) async {
-    // Only skip reload when already playing from a local file for this book.
-    // If the cached source is the HLS URL, always re-check for a local download.
-    final alreadyLocal = currentBookId.value == bookId && audioSource.value.isNotEmpty && !audioSource.value.startsWith('http');
-    if (alreadyLocal) return;
+    // Skip reload only when same book AND same playback mode.
+    // Note: local HLS is served via http://localhost, so we check for that too.
+    final src = audioSource.value;
+    final isCurrentlyLocal = src.isNotEmpty && (!src.startsWith('http') || src.startsWith('http://localhost'));
+    final alreadyLoaded = currentBookId.value == bookId && src.isNotEmpty && forceOffline == isCurrentlyLocal;
+    if (alreadyLoaded) {
+      log('⏭️ Skipping reload — same book, same mode (forceOffline=$forceOffline, local=$isCurrentlyLocal)');
+      return;
+    }
 
     _hasRestoredProgress = false;
 
@@ -179,7 +238,7 @@ class AudioPlayerController extends GetxController {
     currentBookCover.value = bookCover;
     currentBookId.value = bookId;
 
-    await _loadAudioSource(hlsUrl, bookId);
+    await _loadAudioSource(hlsUrl, bookId, forceOffline: forceOffline);
 
     final savedProgress = _getLocalProgress(bookId);
 
@@ -469,6 +528,7 @@ class AudioPlayerController extends GetxController {
       cancelSleepTimer();
       _saveProgressTimer?.cancel();
       _saveProgress();
+      _hlsServer.stop();
     } catch (e) {
       log('Error in onClose: $e');
     }

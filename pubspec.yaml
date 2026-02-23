@@ -63,6 +63,7 @@ dependencies:
   #==================== DEVICE & HARDWARE ====================#
   flutter_bluetooth_serial: ^0.4.0
   screen_brightness: ^1.0.1
+  device_info_plus: ^11.2.0
 
   #==================== EPUB READER ====================#
   flutter_epub_viewer:

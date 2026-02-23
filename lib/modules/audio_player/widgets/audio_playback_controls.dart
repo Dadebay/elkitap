@@ -29,13 +29,24 @@ class AudioPlaybackControls extends StatelessWidget {
             radius: 40,
             backgroundColor: Colors.grey.shade900,
             child: GestureDetector(
-              onTap: () => controller.playPause(),
-              child: CustomIcon(
-                title: controller.isPlaying.value ? 'assets/icons/a4.svg' : 'assets/icons/a3.svg',
-                height: 40,
-                width: 40,
-                color: Colors.white,
-              ),
+              onTap: () {
+                if (!controller.isAudioLoading.value) controller.playPause();
+              },
+              child: controller.isAudioLoading.value
+                  ? const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : CustomIcon(
+                      title: controller.isPlaying.value ? 'assets/icons/a4.svg' : 'assets/icons/a3.svg',
+                      height: 40,
+                      width: 40,
+                      color: Colors.white,
+                    ),
             ),
           ),
           const SizedBox(width: 40),
