@@ -372,6 +372,7 @@ final Map<String, String> enUS = {
   'emptyNotesDescription': 'Your notes will appear here.',
 
   'noInternetConnection': 'No Internet Connection',
+  'continueOffline': 'Continue Offline',
   'checkNetworkSettings': 'Please check your network settings.',
   'retryButton': 'Retry',
   'bookFileNotAvailable': 'Book file not available',

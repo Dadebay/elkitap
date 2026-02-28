@@ -44,7 +44,6 @@ class ContactsController extends GetxController {
 
         return true;
       } else {
-        AppSnackbar.error(response['message'] ?? 'failed_to_load_contacts'.tr);
         return false;
       }
     } catch (e) {

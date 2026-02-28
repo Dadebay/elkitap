@@ -379,6 +379,7 @@ final Map<String, String> trTR = {
   'noInternetConnection': 'Internet baglanyşygy ýok',
   'checkNetworkSettings': 'Tor sazlamalaryňyzy barlaň.',
   'retryButton': 'Täzeden synanyş',
+  'continueOffline': 'Oflaýn dowam et',
   'downloadBookTitle': 'Kitaby ýüklemek',
   'downloadBookContent': '"@bookTitle" -y şifrlemek bilen onlaýn okamak üçin ýüklemek?',
   'downloadingAndEncrypting': 'Kitap ýüklenýär...',

@@ -57,6 +57,7 @@ class DownloadedListScreen extends StatelessWidget {
 
   PreferredSizeWidget _buildAppBar(DownloadController controller, BuildContext context) {
     return AppBar(
+      // scrolledUnderElevation: 0.0,
       leadingWidth: 140,
       leading: Obx(() {
         if (controller.selectedBooks.isEmpty) {

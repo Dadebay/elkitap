@@ -382,6 +382,7 @@ final Map<String, String> ruRU = {
   'emptyNotesDescription': 'Ваши заметки появятся здесь.',
 
   'noInternetConnection': 'Нет подключения к интернету',
+  'continueOffline': 'Продолжить офлайн',
   'checkNetworkSettings': 'Пожалуйста, проверьте настройки сети.',
   'retryButton': 'Повторить',
   'bookFileNotAvailable': 'Файл книги недоступен',

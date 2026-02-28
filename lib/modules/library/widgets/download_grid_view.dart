@@ -22,7 +22,7 @@ class DownloadedGridView extends StatelessWidget {
       child: Obx(() => GridView.builder(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 0.55,
+              childAspectRatio: 0.64,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),

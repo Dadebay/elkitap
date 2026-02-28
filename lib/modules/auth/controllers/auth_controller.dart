@@ -177,7 +177,7 @@ class AuthController extends GetxController {
         currentUser.value = User.fromJson(response['data']);
         return true;
       } else {
-        AppSnackbar.error(response['message'] ?? 'failed_to_load_profile'.tr);
+        // AppSnackbar.error(response['message'] ?? 'failed_to_load_profile'.tr);
         return false;
       }
     } catch (e) {
@@ -208,8 +208,7 @@ class AuthController extends GetxController {
         AppSnackbar.success('username_updated_successfully'.tr);
         return true;
       } else {
-        AppSnackbar.error(
-            response['message'] ?? 'failed_to_update_username'.tr);
+        AppSnackbar.error(response['message'] ?? 'failed_to_update_username'.tr);
         return false;
       }
     } catch (e) {

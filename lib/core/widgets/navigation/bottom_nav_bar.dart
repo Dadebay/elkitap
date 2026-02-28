@@ -2,9 +2,12 @@ import 'package:elkitap/core/constants/icon_constants.dart';
 import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/theme/app_colors.dart';
 import 'package:elkitap/core/widgets/common/custom_icon.dart';
+import 'package:elkitap/data/controller/connection_controller.dart';
+import 'package:elkitap/modules/library/views/downloaded_book_view.dart';
 import 'package:elkitap/modules/library/views/library_view.dart';
 import 'package:elkitap/modules/search/views/search_view.dart';
 import 'package:elkitap/modules/store/views/store_view.dart';
+import 'package:elkitap/utils/internet_connection.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +23,9 @@ class BottomNavScreen extends StatefulWidget {
 class _BottomNavScreenState extends State<BottomNavScreen> {
   int selectedIndex = 1;
   bool showSplash = true;
+  bool hasShownOfflineDialog = false;
+  bool isNavigatingToOffline = false;
+  late ConnectionController connectionController;
 
   @override
   void dispose() {
@@ -31,12 +37,41 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   @override
   void initState() {
     super.initState();
+    connectionController = Get.find<ConnectionController>();
+
     // Hide splash animation after 4 seconds
-    Future.delayed(const Duration(seconds: 4), () {
+    Future.delayed(const Duration(seconds: 4), () async {
       if (mounted) {
-        setState(() {
-          showSplash = false;
-        });
+        // Check connection before hiding splash
+        final isOffline = !connectionController.hasConnection.value;
+
+        // If offline, show connection view immediately (before hiding splash)
+        if (isOffline) {
+          setState(() {
+            showSplash = false;
+            isNavigatingToOffline = true;
+          });
+          // Navigate in next frame to ensure smooth transition
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _showOfflineView();
+            }
+          });
+        } else {
+          // Normal flow - just hide splash
+          setState(() {
+            showSplash = false;
+          });
+        }
+      }
+    });
+
+    // Listen to connection changes (only when app is already running)
+    ever(connectionController.hasConnection, (hasConnection) {
+      if (mounted && !showSplash && !hasShownOfflineDialog) {
+        if (!hasConnection) {
+          _showOfflineView();
+        }
       }
     });
   }
@@ -164,8 +199,37 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
         false;
   }
 
+  void _showOfflineView() async {
+    hasShownOfflineDialog = true;
+
+    // Show the offline connection view
+    await Get.to(
+      () => const ConnectionCheckView(),
+      transition: Transition.fadeIn,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    // When user returns (connection restored or manually dismissed)
+    hasShownOfflineDialog = false;
+    isNavigatingToOffline = false;
+
+    // Show downloaded books screen
+    Get.to(
+      () => const DownloadedListScreen(),
+      transition: Transition.rightToLeft,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // If navigating to offline screen, show blank screen
+    if (!showSplash && isNavigatingToOffline) {
+      return Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+      );
+    }
+
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Stack(
@@ -224,20 +288,16 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           ),
           if (showSplash)
             Positioned.fill(
-              child: IgnorePointer(
-                child: AnimatedOpacity(
-                  opacity: showSplash ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: Container(
-                    color: Colors.transparent,
-                    child: Center(
-                      child: Lottie.asset(
-                        'assets/animations/Artboard1.json',
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                    ),
+              child: AnimatedOpacity(
+                opacity: showSplash ? 1.0 : 0.0,
+                curve: Curves.easeIn,
+                duration: const Duration(milliseconds: 350),
+                child: Center(
+                  child: Lottie.asset(
+                    'assets/animations/Artboard1.json',
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
                   ),
                 ),
               ),

@@ -9,6 +9,7 @@ import 'package:elkitap/modules/store/controllers/book_detail_controller.dart';
 import 'package:elkitap/utils/dialog_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:iconly/iconly.dart';
 
 class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final BooksDetailController controller;
@@ -162,14 +163,10 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
             return;
           }
 
-          final bookTitle = translate != null
-              ? '${translate.name} (${translate.language})'
-              : (translate?.name ?? 'unknown'.tr);
+          final bookTitle = translate != null ? '${translate.name} (${translate.language})' : (translate?.name ?? 'unknown'.tr);
           final imageUrl = controller.getBookCoverImage();
           final book = controller.bookDetail.value;
-          final author = book?.authors.isNotEmpty == true
-              ? book!.authors.first.name
-              : 'unknown_author'.tr;
+          final author = book?.authors.isNotEmpty == true ? book!.authors.first.name : 'unknown_author'.tr;
 
           // Show confirmation dialog
           final confirmed = await _showDownloadConfirmationDialog(
@@ -201,9 +198,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
             // Close loading dialog if open
             if (Get.isDialogOpen ?? false) Get.back();
 
-            AppSnackbar.error(
-              'failedToDownload'.trParams({'error': e.toString()}),
-            );
+            AppSnackbar.error('failedToDownload'.trParams({'error': e.toString()}));
           }
         },
         child: Container(
@@ -243,7 +238,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 )
               : Icon(
-                  isDownloaded ? Icons.download_done : Icons.download,
+                  isDownloaded ? Icons.download_done : IconlyLight.download,
                   size: 18,
                   color: isDownloaded
                       ? Colors.white
@@ -269,14 +264,10 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.black.withOpacity(0.85)
-                    : Colors.white.withOpacity(0.95),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.85) : Colors.white.withOpacity(0.95),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.1)
-                      : Colors.black.withOpacity(0.05),
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
                   width: 1,
                 ),
               ),
@@ -304,9 +295,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                       fontFamily: StringConstants.SFPro,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Colors.black87,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -316,9 +305,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                     style: TextStyle(
                       fontFamily: StringConstants.SFPro,
                       fontSize: 15,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -332,10 +319,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                               side: BorderSide(
-                                color:
-                                    Theme.of(context).brightness == Brightness.dark
-                                        ? Colors.grey[700]!
-                                        : Colors.grey[300]!,
+                                color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700]! : Colors.grey[300]!,
                               ),
                             ),
                           ),
@@ -345,9 +329,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                               fontFamily: StringConstants.SFPro,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.grey[400]
-                                  : Colors.grey[600],
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600],
                             ),
                           ),
                         ),
@@ -395,47 +377,47 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
             borderRadius: BorderRadius.circular(20),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                width: 280,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.black.withOpacity(0.85)
-                      : Colors.white.withOpacity(0.95),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withOpacity(0.1)
-                        : Colors.black.withOpacity(0.05),
-                    width: 1,
+              child: Material(
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.85) : Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  width: 280,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.85) : Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                      width: 1,
+                    ),
                   ),
-                ),
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF5A3C).withOpacity(0.15),
-                        shape: BoxShape.circle,
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        padding: EdgeInsets.all(10),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const LoadingWidget(removeBackWhite: true),
                       ),
-                      child: const LoadingWidget(),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'downloadingAndEncrypting'.tr,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: StringConstants.SFPro,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Colors.black87,
+                      const SizedBox(height: 24),
+                      Text(
+                        'downloadingAndEncrypting'.tr,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: StringConstants.SFPro,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -456,14 +438,10 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.black.withOpacity(0.85)
-                    : Colors.white.withOpacity(0.95),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.black.withOpacity(0.85) : Colors.white.withOpacity(0.95),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.1)
-                      : Colors.black.withOpacity(0.05),
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
                   width: 1,
                 ),
               ),
@@ -491,9 +469,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                       fontFamily: StringConstants.SFPro,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Colors.black87,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -503,9 +479,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                     style: TextStyle(
                       fontFamily: StringConstants.SFPro,
                       fontSize: 15,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -519,10 +493,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                               side: BorderSide(
-                                color:
-                                    Theme.of(context).brightness == Brightness.dark
-                                        ? Colors.grey[700]!
-                                        : Colors.grey[300]!,
+                                color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700]! : Colors.grey[300]!,
                               ),
                             ),
                           ),
@@ -532,9 +503,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                               fontFamily: StringConstants.SFPro,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.grey[400]
-                                  : Colors.grey[600],
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600],
                             ),
                           ),
                         ),
