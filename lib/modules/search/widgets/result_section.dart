@@ -22,20 +22,39 @@ class SearchResultsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Snapshot the observable values ONCE at build time
-    final authors = controller.authors;
-    final books = controller.books;
-    final isLoadingMore = controller.isLoadingMore.value;
-    final hasMoreBooks = controller.hasMoreBooks.value;
+    return Obx(() {
+      final mode = controller.searchMode.value;
+      final authors = mode == 'books' ? [] : controller.authors;
+      final books = mode == 'authors' ? [] : controller.books;
+      final isLoadingMore = controller.isLoadingMore.value;
+      final hasMoreBooks = controller.hasMoreBooks.value;
 
-    return ListView.builder(
-      controller: scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-      itemCount: _calculateItemCount(authors.length, books.length),
-      itemBuilder: (context, index) {
-        return _buildItemAtIndex(context, index, authors, books, isLoadingMore, hasMoreBooks);
-      },
-    );
+      // Show empty state when mode-filtered results are empty
+      if (authors.isEmpty && books.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Text(
+              'no_more_results'.tr,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[500],
+                fontFamily: StringConstants.GilroyMedium,
+              ),
+            ),
+          ),
+        );
+      }
+
+      return ListView.builder(
+        controller: scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        itemCount: _calculateItemCount(authors.length, books.length),
+        itemBuilder: (context, index) {
+          return _buildItemAtIndex(context, index, authors, books, isLoadingMore, hasMoreBooks);
+        },
+      );
+    });
   }
 
   int _calculateItemCount(int authorsLength, int booksLength) {

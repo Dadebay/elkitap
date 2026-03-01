@@ -119,10 +119,10 @@ class CollectionBookSection extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Expanded(
+                  Flexible(
                     child: Text(
                       collection.name,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 18,
@@ -131,7 +131,7 @@ class CollectionBookSection extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey),
                 ],
               ),

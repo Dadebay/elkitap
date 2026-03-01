@@ -1,5 +1,6 @@
 import 'package:elkitap/core/widgets/states/error_state_widget.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
+import 'package:elkitap/core/theme/app_colors.dart';
 import 'package:elkitap/modules/search/controllers/filter_controller.dart';
 import 'package:elkitap/modules/search/controllers/search_controller.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
@@ -79,9 +80,16 @@ class _SearchingViewScreenState extends State<SearchingViewScreen> {
                   return NoSearchResults();
                 }
 
-                return SearchResultsSection(
-                  controller: controller,
-                  scrollController: _scrollController,
+                return Column(
+                  children: [
+                    _buildSearchTabs(context),
+                    Expanded(
+                      child: SearchResultsSection(
+                        controller: controller,
+                        scrollController: _scrollController,
+                      ),
+                    ),
+                  ],
                 );
               }),
             ),
@@ -89,6 +97,51 @@ class _SearchingViewScreenState extends State<SearchingViewScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildSearchTabs(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tabs = [
+      ('all', 'all'.tr),
+      ('books', 'books_t'.tr),
+      ('authors', 'authors_title_t'.tr),
+    ];
+    return Obx(() => Container(
+          margin: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+          decoration: BoxDecoration(
+            color: Colors.grey.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.all(3),
+          child: Row(
+            children: tabs.map((tab) {
+              final isSelected = controller.searchMode.value == tab.$1;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => controller.searchMode.value = tab.$1,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.mainColor : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      tab.$2,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontFamily: StringConstants.GilroyMedium,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ));
   }
 
   Widget buildSearchHistoryOrEmpty(BuildContext context) {

@@ -35,6 +35,9 @@ class SearchResultsController extends GetxController {
   final RxString errorMessage = ''.obs;
   final RxString searchQuery = ''.obs;
 
+  /// 'all' | 'books' | 'authors'
+  final RxString searchMode = 'all'.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -106,6 +109,7 @@ class SearchResultsController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       searchQuery.value = query;
+      searchMode.value = 'all';
       currentAuthorPage.value = 1;
       currentBookPage.value = 1;
       hasMoreAuthors.value = true;
@@ -313,6 +317,7 @@ class SearchResultsController extends GetxController {
   void clearSearch() {
     searchController.clear();
     searchQuery.value = '';
+    searchMode.value = 'all';
     authors.clear();
     books.clear();
     errorMessage.value = '';
