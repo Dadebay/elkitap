@@ -58,24 +58,28 @@ class ProfessionalCard extends StatelessWidget {
             onTap: () {
               Get.to(() => ProfesionalReadersProfil(professionalRead: professional));
             },
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    name,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontFamily: StringConstants.GilroyRegular,
-                      fontWeight: FontWeight.w600,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      name,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: role.trim().isEmpty ? 2 : 1,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontFamily: StringConstants.GilroyRegular,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
-              ],
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
+                ],
+              ),
             ),
           ),
           Container(
@@ -199,12 +203,12 @@ class ProfessionalCard extends StatelessWidget {
           ),
           // Shelf background image
           Positioned(
-            bottom: -16,
+            bottom: -8,
             left: 0,
             right: 0,
             child: Image.asset(
               'assets/images/shelf.png',
-              height: 18,
+              height: 12,
               fit: BoxFit.cover,
               cacheWidth: 512,
               filterQuality: FilterQuality.low,

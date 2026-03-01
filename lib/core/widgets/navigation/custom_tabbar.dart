@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:elkitap/modules/paymant/controller/payment_controller.dart';
 
 import 'package:flutter/material.dart';
@@ -92,7 +94,7 @@ class _TabItem extends StatelessWidget {
           const SizedBox(height: 4),
           Container(
             height: 1.5,
-            width: text.length * 11.5,
+            width: Platform.isIOS ? text.length * 13.5 : text.length * 11.5,
             decoration: BoxDecoration(
               color: isSelected ? Colors.grey[300] : Colors.transparent,
               borderRadius: BorderRadius.circular(2),

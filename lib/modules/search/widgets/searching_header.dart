@@ -49,6 +49,7 @@ class _SearchingHeaderState extends State<SearchingHeader> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
+              padding: EdgeInsets.zero,
               icon: Icon(Icons.arrow_back_ios),
               onPressed: () {
                 _debounceTimer?.cancel();

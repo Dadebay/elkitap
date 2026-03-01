@@ -68,7 +68,7 @@ class _BookAuthorViewState extends State<BookAuthorView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: CustomAppBar(title: '', leadingText: 'leading_text'.tr),
       body: SafeArea(
         child: Obx(() {

@@ -24,7 +24,7 @@ class BooksSection extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: theme
-              ? [Color(0x001C1C1E), Color(0xFF1C1C1E)] // dark mode gradient
+              ? [Color(0xFFE5E5EA), Color(0xFF1C1C1E)] // dark mode gradient
               : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
           begin: theme ? Alignment.bottomCenter : Alignment.topCenter,
           end: theme ? Alignment.topCenter : Alignment.bottomCenter,
@@ -90,11 +90,11 @@ class AudiobooksSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(top: 24),
+      padding: EdgeInsets.only(top: 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: Theme.of(context).brightness == Brightness.dark
-              ? [Color(0x001C1C1E), Color(0xFF1C1C1E)] // dark mode gradient
+              ? [Color(0x001C1C1E), Color(0xFFE5E5EA)] // dark mode gradient
               : [Color(0x00E5E5EA), Color(0xFFE5E5EA)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -162,11 +162,13 @@ class SectionHeader extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 24, fontFamily: StringConstants.GilroyRegular, fontWeight: FontWeight.bold),
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 24, fontFamily: StringConstants.GilroyRegular, fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(width: 8),
             InkWell(

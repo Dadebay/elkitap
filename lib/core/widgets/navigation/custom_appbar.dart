@@ -23,7 +23,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final resolvedBackgroundColor = backgroundColor ?? colorScheme.surface;
     final resolvedTextColor = textColor ?? colorScheme.onSurface;
-    final leadingWidth = leadingText != null ? 130.0 : 56.0;
 
     return AppBar(
       elevation: 0,
@@ -32,7 +31,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       centerTitle: true,
       titleSpacing: 0,
-      leadingWidth: showBackButton ? leadingWidth : 0,
+      leadingWidth: showBackButton ? (leadingText != null ? 100.0 : 56.0) : 0,
       leading: showBackButton
           ? GestureDetector(
               onTap: () async {
@@ -43,7 +42,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Padding(
-                    padding: EdgeInsets.only(left: 16),
+                    padding: EdgeInsets.only(left: 10),
                     child: Icon(
                       Icons.arrow_back_ios,
                       size: 18,
@@ -56,7 +55,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontFamily: StringConstants.SFPro,
                           fontWeight: FontWeight.w500,
                           color: resolvedTextColor,
@@ -68,7 +67,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             )
           : const SizedBox.shrink(),
       title: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.only(right: 20),
         child: Text(
           title,
           maxLines: 1,

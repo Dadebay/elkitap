@@ -88,8 +88,8 @@ class _NotificationsViewState extends State<NotificationsView> {
                       children: [
                         Image.asset(
                           'assets/images/belle_full.png',
-                          width: 150,
-                          height: 150,
+                          width: 50,
+                          height: 50,
                           color: isDark ? Colors.white : null,
                         ),
                         const SizedBox(height: 24),

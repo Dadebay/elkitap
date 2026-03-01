@@ -19,6 +19,7 @@ class ProfessionalsReadView extends StatelessWidget {
       appBar: CustomAppBar(
         title: 'professionals_read_t'.tr,
         leadingText: 'leading_text'.tr,
+        showBackButton: true,
       ),
       body: Obx(() {
         // Loading state

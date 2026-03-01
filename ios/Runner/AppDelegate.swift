@@ -14,6 +14,9 @@ import MediaPlayer
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
     
+    // Fix iOS 26 keyboard rounded corners
+    KeyboardCornerFix.shared.setup()
+    
     // Configure audio session for Bluetooth support
     setupAudioSession()
     

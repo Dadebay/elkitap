@@ -28,16 +28,27 @@ class SpeedPopup {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
                   child: Container(
                     width: 200,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3D3633).withOpacity(0.95),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withOpacity(0.18),
+                          Colors.white.withOpacity(0.08),
+                        ],
+                      ),
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.25),
+                        width: 0.8,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.4),
-                          blurRadius: 20,
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
                       ],

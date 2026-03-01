@@ -37,14 +37,24 @@ class ProfileCardUser extends StatelessWidget {
 
     return Container(
       // padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1C1C1E) : Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.08),
-          blurRadius: 20,
-          spreadRadius: 0,
-          offset: const Offset(0, 2),
-        ),
-      ]),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1C1C1E) : Color(0xfff2f2f7),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 6,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 2,
+            spreadRadius: 0,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
       child: Obx(() {
         // Reactive: get fresh user data inside Obx so it updates when subscription changes
         final currentUser = user ?? authController.currentUser.value;
@@ -56,10 +66,11 @@ class ProfileCardUser extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
+            Container(
               padding: const EdgeInsets.all(14.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
@@ -89,25 +100,30 @@ class ProfileCardUser extends StatelessWidget {
                       onTap: () {
                         _showEditAccountSheet(context);
                       },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              'edit_account'.tr,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontFamily: StringConstants.SFPro,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'edit_account'.tr,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontFamily: StringConstants.SFPro,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 3),
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            size: 14,
-                            color: Colors.grey.shade600,
-                          )
-                        ],
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3, left: 3),
+                              child: Icon(
+                                Icons.arrow_forward_ios,
+                                size: 10,
+                                color: Colors.grey.shade600,
+                              ),
+                            )
+                          ],
+                        ),
                       ),
                     ),
                   ),

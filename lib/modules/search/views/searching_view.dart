@@ -107,7 +107,7 @@ class _SearchingViewScreenState extends State<SearchingViewScreen> {
       ('authors', 'authors_title_t'.tr),
     ];
     return Obx(() => Container(
-          margin: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+          margin: const EdgeInsets.fromLTRB(20, 8, 10, 4),
           decoration: BoxDecoration(
             color: Colors.grey.withOpacity(0.12),
             borderRadius: BorderRadius.circular(12),

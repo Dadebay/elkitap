@@ -55,31 +55,15 @@ class ProfileCard extends StatelessWidget {
       }
     }
 
-    if (bookImages.isEmpty) {
-      return Container(
-        width: 212,
-        height: 90,
-        margin: EdgeInsets.only(right: 6),
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/b8.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-      );
-    }
-
     // Calculate total width needed for overlapping books
-    final bookWidth = 53.0;
+    final bookWidth = 58.0;
     final bookHeight = 75.0;
     final overlap = 10.0;
     final totalWidth = bookWidth + ((bookImages.length - 1) * (bookWidth - overlap));
 
     return Container(
-      width: 220,
-      height: 95,
-      // color: Colors.red,
-      padding: EdgeInsets.symmetric(horizontal: 10),
+      width: 280,
+      height: 110,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -142,17 +126,38 @@ class ProfileCard extends StatelessWidget {
           ),
           // Shelf background image
           Positioned(
-            bottom: 10,
+            bottom: 1,
             left: 0,
             right: 0,
-            child: ClipRRect(
-              child: Image.asset(
-                'assets/images/shelf.png',
-                height: 9,
-                fit: BoxFit.cover,
-                cacheWidth: 512,
-                filterQuality: FilterQuality.low,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  child: Image.asset(
+                    'assets/images/shelf.png',
+                    height: 9,
+                    fit: BoxFit.cover,
+                    cacheWidth: 512,
+                    filterQuality: FilterQuality.low,
+                  ),
+                ),
+                Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.22),
+                        Colors.black.withOpacity(0.10),
+                        Colors.black.withOpacity(0.03),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.35, 0.7, 1.0],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -162,8 +167,6 @@ class ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final books = professionalReadBooks;
-
     return Container(
       width: 265,
       height: 240,
@@ -175,47 +178,83 @@ class ProfileCard extends StatelessWidget {
           color: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Color(0xffdadadd),
         ),
       ),
-      child: Column(
-        children: [
-          SizedBox(height: 22),
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.grey[300],
-            backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-            child: imageUrl.isEmpty ? Icon(Icons.person, size: 32, color: Colors.grey[600]) : null,
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 10, bottom: 6),
-            child: Text(
-              role.toUpperCase(),
-              style: TextStyle(
-                fontSize: 12,
-                fontFamily: StringConstants.SFPro,
-                color: Colors.grey[600],
-                letterSpacing: 1.0,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      child: role.trim().isEmpty
+          ? Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 20, bottom: 6),
+                  child: CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                    child: imageUrl.isEmpty ? Icon(Icons.person, size: 32, color: Colors.grey[600]) : null,
+                  ),
+                ),
+
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(bottom: 10),
+                      child: Text(
+                        name,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+                // SizedBox(height: (books == null || books.isEmpty) ? 10 : 5),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(bottom: 11),
+                  child: _buildShelf(context),
+                ),
+              ],
+            )
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 20, bottom: 6),
+                  child: CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                    child: imageUrl.isEmpty ? Icon(Icons.person, size: 32, color: Colors.grey[600]) : null,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, left: 16, right: 16, bottom: 6),
+                  child: Text(
+                    role.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontFamily: StringConstants.SFPro,
+                      color: Colors.grey[600],
+                      letterSpacing: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(bottom: 10),
+                  child: Text(
+                    name,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                // SizedBox(height: (books == null || books.isEmpty) ? 10 : 5),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: _buildShelf(context),
+                ),
+              ],
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              name,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          SizedBox(height: (books == null || books.isEmpty) ? 10 : 5),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildShelf(context),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -107,20 +107,23 @@ class _RecentlyOpenedSectionState extends State<RecentlyOpenedSection> {
                       ),
                     );
                   },
-                  child: Padding(
-                    padding: EdgeInsets.only(right: isLast ? 0 : 12, top: 8, bottom: 8),
-                    child: BookCardReOpen(
-                      book: book,
-                      index: index,
-                      tabIndex: 0,
-                      onTap: () {
-                        Get.to(
-                          () => BookDetailView(book: book),
-                          transition: Transition.rightToLeft,
-                          duration: const Duration(milliseconds: 300),
-                        );
-                      },
-                      progress: (double.tryParse(book.progress ?? '0') ?? 0.0) / 100,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(right: isLast ? 0 : 12, bottom: 8),
+                      child: BookCardReOpen(
+                        book: book,
+                        index: index,
+                        tabIndex: 0,
+                        onTap: () {
+                          Get.to(
+                            () => BookDetailView(book: book),
+                            transition: Transition.rightToLeft,
+                            duration: const Duration(milliseconds: 300),
+                          );
+                        },
+                        progress: (double.tryParse(book.progress ?? '0') ?? 0.0) / 100,
+                      ),
                     ),
                   ),
                 );
