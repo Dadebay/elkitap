@@ -87,7 +87,7 @@ class _FilterPageState extends State<FilterPage> {
           ),
         ),
         centerTitle: true,
-        leadingWidth: 80,
+        leadingWidth: 120,
         title: Text(
           'filter'.tr,
           style: TextStyle(
@@ -473,8 +473,7 @@ class _FilterPageState extends State<FilterPage> {
               spacing: 8,
               runSpacing: 8,
               children: fc.tempAuthorIds.map((id) {
-                final author = fc.allAuthors.firstWhereOrNull((a) => a.id == id);
-                final name = author?.name ?? 'ID: $id';
+                final name = fc.authorDisplayName(id);
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(

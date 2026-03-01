@@ -12,13 +12,14 @@ class NetworkManager extends GetxController {
     String endpoint, {
     bool sendToken = false,
     Map<String, String>? queryParameters,
+    String? languageOverride,
   }) async {
     try {
       final uri = Uri.parse(ApiEndpoints.getFullUrl(endpoint)).replace(queryParameters: queryParameters);
 
       final response = await http.get(
         uri,
-        headers: _getHeaders(sendToken: sendToken),
+        headers: _getHeaders(sendToken: sendToken, languageOverride: languageOverride),
       );
 
       return _handleResponse(response);
@@ -107,11 +108,11 @@ class NetworkManager extends GetxController {
     }
   }
 
-  Map<String, String> _getHeaders({bool sendToken = false}) {
+  Map<String, String> _getHeaders({bool sendToken = false, String? languageOverride}) {
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'content-language': _getAcceptLanguage(),
+      'content-language': languageOverride ?? _getAcceptLanguage(),
     };
     if (sendToken) {
       final token = _tokenManager.getToken();

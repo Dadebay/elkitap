@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/data/network/network_manager.dart';
 import 'package:elkitap/modules/search/models/authors_model.dart';
@@ -57,6 +59,9 @@ class FilterController extends GetxController {
   final RxBool hasMoreAuthors = true.obs;
   final TextEditingController authorSearchController = TextEditingController();
   final RxString authorSearchQuery = ''.obs;
+
+  /// Cache of authors that have been selected — survives allAuthors.clear()
+  final Map<int, Author> _authorCache = {};
 
   final RxList<Genre> allGenres = <Genre>[].obs;
   final RxBool isLoadingGenres = false.obs;
@@ -173,6 +178,7 @@ class FilterController extends GetxController {
   void clearTempFilters() {
     tempLanguageId.value = null;
     tempAuthorIds.clear();
+    _authorCache.clear();
     tempGenreIds.clear();
     tempFormat.value = 'all';
     isAgeFilterEnabled.value = false;
@@ -239,8 +245,10 @@ class FilterController extends GetxController {
   // ---- Author search for filter ----
 
   Future<void> searchAuthorsForFilter(String query) async {
+    log('🔍 [AuthorSearch] query: "$query"');
     if (query.trim().isEmpty) {
       allAuthors.clear();
+      log('🔍 [AuthorSearch] empty query → cleared');
       return;
     }
 
@@ -248,9 +256,12 @@ class FilterController extends GetxController {
       isLoadingAuthors.value = true;
       authorPage.value = 1;
 
+      log('🔍 [AuthorSearch] endpoint: ${ApiEndpoints.searchAuthors}');
+
       final response = await _networkManager.get(
         ApiEndpoints.searchAuthors,
         sendToken: true,
+        // languageOverride: 'tk',
         queryParameters: {
           'search': query,
           'page': '1',
@@ -258,21 +269,33 @@ class FilterController extends GetxController {
         },
       );
 
-      if (response['success']) {
+      log('🔍 [AuthorSearch] response keys: ${response.keys.toList()}');
+      log('🔍 [AuthorSearch] success: ${response['success']}');
+      log('🔍 [AuthorSearch] data type: ${response['data']?.runtimeType}');
+      log('🔍 [AuthorSearch] data: ${response['data']}');
+
+      if (response['success'] == true) {
         final data = response['data'];
         if (data != null && data is List) {
+          log('🔍 [AuthorSearch] data is List, count: ${data.length}');
           allAuthors.assignAll(
             data.map((json) => Author.fromJson(json)).toList(),
           );
         } else if (data != null && data is Map<String, dynamic>) {
-          final List<dynamic> items = data['items'] ?? [];
+          final List<dynamic> items = data['items'] ?? data['results'] ?? data['authors'] ?? [];
+          log('🔍 [AuthorSearch] data is Map, items count: ${items.length}, map keys: ${data.keys.toList()}');
           allAuthors.assignAll(
             items.map((json) => Author.fromJson(json)).toList(),
           );
+        } else {
+          log('🔍 [AuthorSearch] data is null or unknown type: ${data?.runtimeType}');
         }
+      } else {
+        log('🔍 [AuthorSearch] success=false, full response: $response');
       }
-    } catch (e) {
-      // Silently fail
+      log('🔍 [AuthorSearch] allAuthors.length after parse: ${allAuthors.length}');
+    } catch (e, st) {
+      log('❌ [AuthorSearch] ERROR: $e', error: e, stackTrace: st);
     } finally {
       isLoadingAuthors.value = false;
     }
@@ -334,8 +357,17 @@ class FilterController extends GetxController {
     if (tempAuthorIds.contains(authorId)) {
       tempAuthorIds.remove(authorId);
     } else {
+      // Cache the Author object so we can show the name even after allAuthors is cleared
+      final author = allAuthors.firstWhereOrNull((a) => a.id == authorId);
+      if (author != null) _authorCache[authorId] = author;
       tempAuthorIds.add(authorId);
     }
+  }
+
+  /// Returns the display name for a selected author id, using cache as fallback.
+  String authorDisplayName(int id) {
+    final author = allAuthors.firstWhereOrNull((a) => a.id == id) ?? _authorCache[id];
+    return author?.name ?? 'ID: $id';
   }
 
   /// Returns the current app locale key (tk / ru / en).

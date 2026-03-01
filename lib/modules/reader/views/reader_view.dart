@@ -27,6 +27,7 @@ import 'package:elkitap/modules/reader/widgets/add_note_sheet.dart';
 import 'package:elkitap/modules/reader/widgets/reader_actions_sheet.dart';
 import 'package:elkitap/modules/reader/helpers/reader_helpers.dart';
 import 'package:elkitap/modules/reader/helpers/book_download_service.dart';
+import 'package:elkitap/modules/audio_player/controllers/audio_player_controller.dart';
 import 'package:elkitap/modules/reader/helpers/reader_ui_builder.dart';
 
 class EpubReaderScreen extends StatefulWidget {
@@ -120,6 +121,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   double _lastRelocatedProgress = 0.0;
 
   Timer? _initialLoadingTimer;
+  Timer? _absoluteLoadingTimer; // 60-second hard limit — force-clears all loading state
   Timer? _fontSizeDebounceTimer;
 
   String? _cachedLocations;
@@ -204,7 +206,30 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       if (_restoreRetryCount % 4 == 1) {
         log('🔁 Retry restore to ${_pendingRestoreProgress!}');
       }
-      _viewerController.toProgressPercentage(_pendingRestoreProgress!);
+
+      // Guard: never pass an out-of-range value to toProgressPercentage
+      if (_pendingRestoreProgress! < 0.0 || _pendingRestoreProgress! > 1.0) {
+        log('⚠️ Restore watchdog: _pendingRestoreProgress (${_pendingRestoreProgress!}) is out of [0,1] — aborting restore');
+        timer.cancel();
+        setState(() {
+          _isRestoringProgress = false;
+          _pendingRestoreProgress = null;
+        });
+        _markReaderReadyIfPossible();
+        return;
+      }
+
+      try {
+        _viewerController.toProgressPercentage(_pendingRestoreProgress!);
+      } catch (e) {
+        log('⚠️ Restore watchdog: toProgressPercentage threw: $e — aborting restore');
+        timer.cancel();
+        setState(() {
+          _isRestoringProgress = false;
+          _pendingRestoreProgress = null;
+        });
+        _markReaderReadyIfPossible();
+      }
     });
   }
 
@@ -224,6 +249,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   @override
   void dispose() {
     _initialLoadingTimer?.cancel();
+    _absoluteLoadingTimer?.cancel();
     _fontSizeDebounceTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -236,6 +262,16 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     WidgetsBinding.instance.addObserver(this);
 
     _applyReaderSystemUiStyle();
+
+    // Pause audio playback when opening the text reader so audio doesn't
+    // keep playing in the background while the user is reading.
+    if (Get.isRegistered<AudioPlayerController>()) {
+      final audioCtrl = Get.find<AudioPlayerController>();
+      if (audioCtrl.isPlaying.value) {
+        audioCtrl.playPause();
+        log('⏸️ Audio paused — opening text reader');
+      }
+    }
 
     libraryMainController = Get.find<LibraryMainController>();
     allBooksController = Get.find<GetAllBooksController>();
@@ -283,6 +319,26 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
         log('⏱️ Loading timeout (8s) — VPP still not locked. Force-dismissing loading overlay.');
         setState(() {
           _isLoadingPages = false;
+          _useManualSwipeFallback = true;
+          if (_viewerTotalPages <= 1) _viewerTotalPages = _liveTotalPages;
+        });
+        _markReaderReadyIfPossible();
+      }
+    });
+
+    // Absolute hard limit: if the reader is still showing a loading spinner after
+    // 60 seconds for any reason (stuck restore, unresolved VPP, etc.) force-clear
+    // all loading state so the user can use the book.
+    _absoluteLoadingTimer = Timer(const Duration(seconds: 60), () {
+      if (!mounted) return;
+      final stillLoading = _isLoadingPages || _isRestoringProgress;
+      if (stillLoading) {
+        log('⏱️ Absolute loading timeout (60s) — force-clearing all loading state.');
+        _restoreRetryTimer?.cancel();
+        setState(() {
+          _isLoadingPages = false;
+          _isRestoringProgress = false;
+          _pendingRestoreProgress = null;
           _useManualSwipeFallback = true;
           if (_viewerTotalPages <= 1) _viewerTotalPages = _liveTotalPages;
         });
@@ -812,6 +868,19 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     log('   audioProgress from storage: $audioProgress');
 
     if (audioProgress != null && audioProgress > 0.001) {
+      // Validate that the stored progress is a valid decimal in [0.0, 1.0].
+      // Values outside this range are corrupted (e.g. raw ms position mistakenly
+      // written to storage). Discard them silently so the epub viewer never
+      // receives an out-of-range assertion.
+      if (audioProgress < 0.0 || audioProgress > 1.0) {
+        log('⚠️ _applyAudioProgressIfNeeded: audioProgress ($audioProgress) out of [0,1] — discarding corrupt value, not restoring');
+        _isRestoringProgress = false;
+        _pendingRestoreProgress = null;
+        _restoreRetryTimer?.cancel();
+        _markReaderReadyIfPossible();
+        return;
+      }
+
       final targetPage = (audioProgress * _liveTotalPages).round();
       log('✅ Audio progress found: ${(audioProgress * 100).toStringAsFixed(1)}%');
       log('   Target page: $targetPage / $_liveTotalPages');
@@ -827,8 +896,18 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       _hasPostVppRestoreKick = false;
       _startRestoreWatchdog();
 
-      _viewerController.toProgressPercentage(audioProgress);
-      log('✅ Applied progress successfully');
+      try {
+        _viewerController.toProgressPercentage(audioProgress);
+        log('✅ Applied progress successfully');
+      } catch (e) {
+        log('⚠️ _applyAudioProgressIfNeeded: toProgressPercentage threw: $e — aborting restore');
+        _restoreRetryTimer?.cancel();
+        setState(() {
+          _isRestoringProgress = false;
+          _pendingRestoreProgress = null;
+        });
+        _markReaderReadyIfPossible();
+      }
     } else {
       _isRestoringProgress = false;
       _pendingRestoreProgress = null;
@@ -1357,7 +1436,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
     // Center horizontally on the selection, but clamp to screen
     final selectionCenterX = rect.left + rect.width / 2;
-    const estimatedToolbarWidth = 220.0;
+    const estimatedToolbarWidth = 360.0;
     double toolbarLeft = (selectionCenterX - estimatedToolbarWidth / 2).clamp(8.0, screenWidth - estimatedToolbarWidth - 8.0);
 
     return Positioned(
@@ -1365,76 +1444,79 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       left: toolbarLeft,
       child: Material(
         color: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            color: _currentTheme.isDark ? const Color(0xFF2C2C2E) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.25),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _toolbarButton(
-                label: 'add_note'.tr,
-                onTap: () {
-                  final text = _selectedText;
-                  if (text.isNotEmpty) {
-                    _showAddNoteSheet(text);
-                  }
-                },
-              ),
-              _toolbarDivider(),
-              _toolbarButton(
-                label: 'share_text'.tr,
-                onTap: () {
-                  final text = _selectedText;
-                  _clearSelectionFully();
-                  if (text.isNotEmpty) {
-                    _handleShare(text);
-                  }
-                },
-              ),
-              _toolbarDivider(),
-              _toolbarButton(
-                label: 'copy_text'.tr,
-                onTap: () {
-                  final text = _selectedText;
-                  _clearSelectionFully();
-                  if (text.isNotEmpty) {
-                    _handleCopy(text);
-                    Get.snackbar(
-                      '',
-                      '',
-                      snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: Colors.green.withOpacity(0.9),
-                      colorText: Colors.white,
-                      duration: const Duration(seconds: 2),
-                      margin: const EdgeInsets.all(16),
-                      borderRadius: 8,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      titleText: const SizedBox.shrink(),
-                      messageText: Text(
-                        'copied_to_clipboard'.tr,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: screenWidth - 16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _currentTheme.isDark ? const Color(0xFF2C2C2E) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _toolbarButton(
+                  label: 'add_note'.tr,
+                  onTap: () {
+                    final text = _selectedText;
+                    if (text.isNotEmpty) {
+                      _showAddNoteSheet(text);
+                    }
+                  },
+                ),
+                _toolbarDivider(),
+                _toolbarButton(
+                  label: 'share_text'.tr,
+                  onTap: () {
+                    final text = _selectedText;
+                    _clearSelectionFully();
+                    if (text.isNotEmpty) {
+                      _handleShare(text);
+                    }
+                  },
+                ),
+                _toolbarDivider(),
+                _toolbarButton(
+                  label: 'copy_text'.tr,
+                  onTap: () {
+                    final text = _selectedText;
+                    _clearSelectionFully();
+                    if (text.isNotEmpty) {
+                      _handleCopy(text);
+                      Get.snackbar(
+                        '',
+                        '',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.green.withOpacity(0.9),
+                        colorText: Colors.white,
+                        duration: const Duration(seconds: 2),
+                        margin: const EdgeInsets.all(16),
+                        borderRadius: 8,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        titleText: const SizedBox.shrink(),
+                        messageText: Text(
+                          'copied_to_clipboard'.tr,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                      isDismissible: true,
-                      dismissDirection: DismissDirection.horizontal,
-                    );
-                  }
-                },
-              ),
-            ],
+                        isDismissible: true,
+                        dismissDirection: DismissDirection.horizontal,
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),

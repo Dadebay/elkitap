@@ -87,33 +87,35 @@ class AudiobookPlayerScreen extends StatelessWidget {
           children: [
             AudioBackground(),
             SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    AudioTopBar(
-                      bookId: bookId,
-                      hlsUrl: hlsUrl,
-                      bookTitle: bookTitle,
-                      bookCover: bookCover,
-                      bookAuthor: bookAuthor,
-                      bookDetailController: bookDetailController,
-                      globalMiniCtrl: globalMiniCtrl,
-                    ),
-                    AudioBookCover(),
-                    AudioBookInfo(),
-                    AudioProgressBar(),
-                    AudioPlaybackControls(),
-                    AudioBottomControls(
-                      onSpeedTap: () => SpeedPopup.show(context, controller),
-                      onSleepTimerTap: () => SleepTimerPopup.show(context, controller),
-                      onBluetoothTap: () => BluetoothPopup.show(context),
-                      onDriverModeTap: () {
-                        controller.enableDriverMode();
-                        Get.to(() => const DriverModeScreen());
-                      },
-                    ),
-                  ],
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      AudioTopBar(
+                        bookId: bookId,
+                        hlsUrl: hlsUrl,
+                        bookTitle: bookTitle,
+                        bookCover: bookCover,
+                        bookAuthor: bookAuthor,
+                        bookDetailController: bookDetailController,
+                        globalMiniCtrl: globalMiniCtrl,
+                      ),
+                      AudioBookCover(),
+                      AudioBookInfo(),
+                      AudioProgressBar(),
+                      AudioPlaybackControls(),
+                      AudioBottomControls(
+                        onSpeedTap: () => SpeedPopup.show(context, controller),
+                        onSleepTimerTap: () => SleepTimerPopup.show(context, controller),
+                        onBluetoothTap: () => BluetoothPopup.show(context),
+                        onDriverModeTap: () {
+                          controller.enableDriverMode();
+                          Get.to(() => const DriverModeScreen());
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

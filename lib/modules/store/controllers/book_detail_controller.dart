@@ -424,15 +424,36 @@ class BooksDetailController extends GetxController {
 
           try {
             final progressValue = double.parse(progress.value!);
-            final progressDecimal = progressValue / 100.0; // Convert percentage to decimal
-            log('📊 fetchProgress: Converted to decimal: $progressDecimal (${(progressDecimal * 100).toStringAsFixed(1)}%)');
 
-            // Save to local storage using the same key pattern as ProgressSyncMixin
-            if (bookDetail.value?.id != null && selectedTranslateId.value != null) {
-              final uniqueBookId = '${bookDetail.value!.id}_t${selectedTranslateId.value}';
-              final key = '$_audioProgressKey$uniqueBookId';
-              _storage.write(key, progressDecimal);
-              log('📊 fetchProgress: Saved to storage with key: $key, value: $progressDecimal');
+            // The server may hold progress in two formats depending on who last
+            // saved it:
+            //   • decimal  (0.0 – 1.0)  — sent by audio_player_controller
+            //   • percentage (0 – 100)  — sent by reader_controller (×100 int)
+            // Values > 100 are corrupted (e.g. raw CFI / ms position) — discard.
+            double? progressDecimal;
+            if (progressValue < 0) {
+              // negative — invalid
+            } else if (progressValue <= 1.0) {
+              // Already a decimal
+              progressDecimal = progressValue;
+            } else if (progressValue <= 100.0) {
+              // Percentage — convert to decimal
+              progressDecimal = progressValue / 100.0;
+            } else {
+              // Out of valid range — corrupted value, do not persist
+              log('📊 fetchProgress: progress value out of range ($progressValue) — skipping local save to prevent corrupt seek position');
+            }
+
+            if (progressDecimal != null) {
+              log('📊 fetchProgress: Converted to decimal: $progressDecimal (${(progressDecimal * 100).toStringAsFixed(1)}%)');
+
+              // Save to local storage using the same key pattern as ProgressSyncMixin
+              if (bookDetail.value?.id != null && selectedTranslateId.value != null) {
+                final uniqueBookId = '${bookDetail.value!.id}_t${selectedTranslateId.value}';
+                final key = '$_audioProgressKey$uniqueBookId';
+                _storage.write(key, progressDecimal);
+                log('📊 fetchProgress: Saved to storage with key: $key, value: $progressDecimal');
+              }
             }
           } catch (e) {
             log('📊 fetchProgress: Error parsing progress: $e');
