@@ -145,7 +145,7 @@ PODS:
     - PromisesObjC (= 2.4.0)
   - qr_code_scanner_plus (0.2.6):
     - Flutter
-  - restart_app (0.0.1):
+  - restart_app (1.7.0):
     - Flutter
   - screen_brightness_ios (0.1.0):
     - Flutter
@@ -190,7 +190,7 @@ DEPENDENCIES:
   - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
 SPEC REPOS:
-  trunk:
+  https://github.com/CocoaPods/Specs.git:
     - Firebase
     - FirebaseABTesting
     - FirebaseCore
@@ -296,7 +296,7 @@ SPEC CHECKSUMS:
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   qr_code_scanner_plus: 1fb59fd4576edb53ec7560c3746f454dee54300c
-  restart_app: 9cda5378aacc5000e3f66ee76a9201534e7d3ecf
+  restart_app: 56b4e49f32ab23446e71b597badeb027f176c3e5
   screen_brightness_ios: 28c5fbdb40634de44f86025d84470158ad4df48c
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
@@ -304,6 +304,6 @@ SPEC CHECKSUMS:
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
   webview_flutter_wkwebview: 1821ceac936eba6f7984d89a9f3bcb4dea99ebb2
 
-PODFILE CHECKSUM: 83f6a08c58d4b249cda5d50acce1e33fac59623c
+PODFILE CHECKSUM: 99ed2b6f5e7655f84bf8f73f3940e53c5ad807a7
 
 COCOAPODS: 1.16.2

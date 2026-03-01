@@ -1,5 +1,8 @@
 import 'package:elkitap/core/constants/string_constants.dart';
+import 'package:elkitap/core/theme/app_colors.dart';
+import 'package:elkitap/modules/search/controllers/filter_controller.dart';
 import 'package:elkitap/modules/search/controllers/search_controller.dart';
+import 'package:elkitap/modules/search/views/filter_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -126,9 +129,70 @@ class _SearchingHeaderState extends State<SearchingHeader> {
               ),
             ),
           ),
-          SizedBox(width: 8),
+          _buildFilterButton(context),
+          const SizedBox(width: 4),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilterButton(BuildContext context) {
+    final filterController = Get.find<FilterController>();
+    return Obx(() {
+      final filterCount = filterController.activeFilterCount;
+      return GestureDetector(
+        onTap: () => _showFilterSheet(context),
+        child: Container(
+          width: 40,
+          height: 40,
+          margin: const EdgeInsets.only(left: 4),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                IconlyLight.filter,
+                size: 24,
+                color: filterCount > 0 ? AppColors.mainColor : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+              ),
+              if (filterCount > 0)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: const BoxDecoration(
+                      color: AppColors.mainColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$filterCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  void _showFilterSheet(BuildContext context) {
+    Get.to(
+      () => FilterPage(
+        onApply: () {
+          final searchController = Get.find<SearchResultsController>();
+          searchController.reSearchWithFilters();
+        },
+      ),
+      transition: Transition.cupertino,
     );
   }
 }

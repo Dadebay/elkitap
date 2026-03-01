@@ -95,6 +95,12 @@ class _BookDetailViewState extends State<BookDetailView> with WidgetsBindingObse
       tag: resolvedBookId.toString(),
     );
 
+    // Pass book_translate_id hint from the list API so the correct
+    // language/translate is pre-selected when the detail loads.
+    if (widget.book?.bookTranslateId != null) {
+      controller.hintTranslateId.value = widget.book!.bookTranslateId;
+    }
+
     if (widget.isAudio) {
       controller.isAudio.value = true;
     }

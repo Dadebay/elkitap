@@ -1,7 +1,9 @@
 import 'package:elkitap/core/widgets/states/error_state_widget.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
+import 'package:elkitap/modules/search/controllers/filter_controller.dart';
 import 'package:elkitap/modules/search/controllers/search_controller.dart';
 import 'package:elkitap/core/widgets/states/empty_states.dart';
+import 'package:elkitap/modules/search/widgets/active_filters_bar.dart';
 import 'package:elkitap/modules/search/widgets/result_section.dart';
 import 'package:elkitap/modules/search/widgets/search_history_widget.dart';
 import 'package:elkitap/modules/search/widgets/searching_header.dart';
@@ -24,6 +26,7 @@ class _SearchingViewScreenState extends State<SearchingViewScreen> {
   void initState() {
     super.initState();
     controller = Get.put(SearchResultsController());
+    Get.put(FilterController());
     _scrollController.addListener(_onScroll);
   }
 
@@ -46,9 +49,15 @@ class _SearchingViewScreenState extends State<SearchingViewScreen> {
         child: Column(
           children: [
             SearchingHeader(),
+            ActiveFiltersBar(
+              onClearAll: () => controller.reSearchWithFilters(),
+            ),
             Expanded(
               child: Obx(() {
-                if (controller.searchQuery.value.isEmpty) {
+                // Check if filters are active
+                final hasFilters = Get.isRegistered<FilterController>() && Get.find<FilterController>().hasActiveFilters;
+
+                if (controller.searchQuery.value.isEmpty && !hasFilters && controller.books.isEmpty) {
                   return buildSearchHistoryOrEmpty(context);
                 }
 

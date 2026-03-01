@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/data/network/network_manager.dart';
+import 'package:elkitap/modules/search/controllers/filter_controller.dart';
 import 'package:elkitap/modules/search/models/authors_model.dart';
 import 'package:elkitap/modules/store/model/book_item_model.dart';
 import 'package:flutter/material.dart';
@@ -13,11 +14,10 @@ class SearchResultsController extends GetxController {
   final TextEditingController searchController = TextEditingController();
   final GetStorage _storage = GetStorage();
 
-
- // Storage key
+  // Storage key
   static const String _searchHistoryKey = 'search_history';
   static const int _maxHistoryItems = 10;
-   // Search history
+  // Search history
   final RxList<String> searchHistory = <String>[].obs;
   // Authors
   final RxList<Author> authors = <Author>[].obs;
@@ -35,12 +35,11 @@ class SearchResultsController extends GetxController {
   final RxString errorMessage = ''.obs;
   final RxString searchQuery = ''.obs;
 
-   @override
+  @override
   void onInit() {
     super.onInit();
     loadSearchHistory();
   }
-
 
   @override
   void onClose() {
@@ -59,16 +58,16 @@ class SearchResultsController extends GetxController {
   // Save search query to history
   void saveToHistory(String query) {
     if (query.trim().isEmpty) return;
-    
+
     // Remove if already exists (to move it to top)
     searchHistory.remove(query);
-    
+
     // Add to beginning
     searchHistory.insert(0, query);
     if (searchHistory.length > _maxHistoryItems) {
       searchHistory.removeLast();
     }
-    
+
     // Save to storage
     _storage.write(_searchHistoryKey, searchHistory.toList());
   }
@@ -90,7 +89,6 @@ class SearchResultsController extends GetxController {
     searchController.text = query;
     searchAuthors(query);
   }
-
 
   // Search both authors and books
   Future<void> searchAuthors(String query) async {
@@ -114,15 +112,13 @@ class SearchResultsController extends GetxController {
       hasMoreBooks.value = true;
       authors.clear();
       books.clear();
-      
-      
+
       saveToHistory(query);
 
       await Future.wait([
         _fetchAuthors(query),
         _fetchBooks(query),
       ]);
-
     } catch (e) {
       errorMessage.value = 'An error occurred: $e';
       log('Search error: $e');
@@ -170,8 +166,7 @@ class SearchResultsController extends GetxController {
           final List<dynamic> items = data['items'] ?? [];
           log('_fetchAuthors: Found ${items.length} items');
 
-          final newAuthors =
-              items.map((json) => Author.fromJson(json)).toList();
+          final newAuthors = items.map((json) => Author.fromJson(json)).toList();
 
           if (currentAuthorPage.value == 1) {
             authors.assignAll(newAuthors);
@@ -181,14 +176,8 @@ class SearchResultsController extends GetxController {
 
           final int total = data['totalCount'] ?? 0;
           hasMoreAuthors.value = (currentAuthorPage.value * 10) < total;
-
-         
-        } else {
-         
-        }
-      } else {
-      
-      }
+        } else {}
+      } else {}
 
       log('_fetchAuthors: Method completing with ${authors.length} authors');
     } catch (e, stackTrace) {
@@ -205,14 +194,22 @@ class SearchResultsController extends GetxController {
         isLoadingMore.value = true;
       }
 
+      final Map<String, String> queryParams = {
+        'search': query,
+        'page': currentBookPage.value.toString(),
+        'size': '20',
+      };
+
+      // Add filter params if FilterController is registered
+      if (Get.isRegistered<FilterController>()) {
+        final filterController = Get.find<FilterController>();
+        queryParams.addAll(filterController.buildFilterParams());
+      }
+
       final response = await _networkManager.get(
         ApiEndpoints.allBooks,
         sendToken: true,
-        queryParameters: {
-          'search': query,
-          'page': currentBookPage.value.toString(),
-          'size': '20',
-        },
+        queryParameters: queryParams,
       );
 
       if (response['success']) {
@@ -245,15 +242,71 @@ class SearchResultsController extends GetxController {
 
   // Load more books (pagination)
   Future<void> loadMoreBooks() async {
-    if (isLoadingMore.value ||
-        !hasMoreBooks.value ||
-        isLoading.value ||
-        searchQuery.value.isEmpty) {
+    if (isLoadingMore.value || !hasMoreBooks.value || isLoading.value || searchQuery.value.isEmpty) {
       return;
     }
 
     currentBookPage.value++;
     await _fetchBooks(searchQuery.value, isLoadMore: true);
+  }
+
+  // Re-apply search with current filters
+  Future<void> reSearchWithFilters() async {
+    if (searchQuery.value.isEmpty) {
+      // If no search query, fetch all books with filters only
+      await _fetchFilteredBooks();
+      return;
+    }
+    await searchAuthors(searchQuery.value);
+  }
+
+  // Fetch books with filters only (no search query needed)
+  Future<void> _fetchFilteredBooks() async {
+    if (Get.isRegistered<FilterController>()) {
+      final filterController = Get.find<FilterController>();
+      if (!filterController.hasActiveFilters) return;
+    }
+
+    try {
+      isLoading.value = true;
+      errorMessage.value = '';
+      currentBookPage.value = 1;
+      hasMoreBooks.value = true;
+      books.clear();
+      authors.clear();
+
+      final Map<String, String> queryParams = {
+        'page': '1',
+        'size': '20',
+      };
+
+      if (Get.isRegistered<FilterController>()) {
+        final filterController = Get.find<FilterController>();
+        queryParams.addAll(filterController.buildFilterParams());
+      }
+
+      final response = await _networkManager.get(
+        ApiEndpoints.allBooks,
+        sendToken: true,
+        queryParameters: queryParams,
+      );
+
+      if (response['success']) {
+        final data = response['data'];
+        if (data != null && data is Map<String, dynamic>) {
+          final List<dynamic> items = data['items'] ?? [];
+          final newBooks = items.map((json) => Book.fromJson(json)).toList();
+          books.assignAll(newBooks);
+
+          final int total = data['totalCount'] ?? 0;
+          hasMoreBooks.value = (1 * 20) < total;
+        }
+      }
+    } catch (e) {
+      errorMessage.value = 'An error occurred: $e';
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   // Clear search

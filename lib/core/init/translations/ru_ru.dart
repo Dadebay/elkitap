@@ -604,6 +604,22 @@ final Map<String, String> ruRU = {
   'status_rejected': 'Отклонено',
   'reason': 'Причина',
 
+  // Filter
+  'filter': 'Фильтр',
+  'apply_filter': 'Применить',
+  'all': 'Все',
+  'search_author': 'Поиск автора...',
+  'no_authors_found': 'Авторы не найдены',
+  'age_range': 'Возрастной диапазон',
+  'year_range': 'Диапазон года',
+  'years_old': 'лет',
+  'books_count': 'книг',
+  'active_filters': 'Активные фильтры',
+  'format': 'Формат',
+  'format_all': 'Все',
+  'format_text': 'Текст',
+  'format_audio': 'Аудио',
+
   // Audio download
   'audiobook_downloaded_successfully': 'Аудиокнига успешно загружена',
   'failed_to_download_audiobook': 'Ошибка загрузки аудиокниги: @error',

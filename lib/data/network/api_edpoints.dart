@@ -13,6 +13,9 @@ class ApiEndpoints {
   // Geners endpoints
   static const String geners = '/genres/all';
 
+  // Language endpoints
+  static const String bookLanguages = '/book-languages';
+
   // Authors endpoints
   static const String searchAuthors = '/authors/search';
   static String authorDetail(int id) => '/authors/$id';
@@ -27,8 +30,7 @@ class ApiEndpoints {
   // Book detail
   static String bookDetail(int bookId) => '/books/$bookId';
   static String bookProgress(int bookId) => '/books/$bookId/progress';
-  static String audioHlsKey(int bookTranslateId) =>
-      '/books/audio-hls-key/$bookTranslateId';
+  static String audioHlsKey(int bookTranslateId) => '/books/audio-hls-key/$bookTranslateId';
 
   // Like a book
   static String bookLike(int id) => '/books/$id/like';

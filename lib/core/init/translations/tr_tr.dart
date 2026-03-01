@@ -599,6 +599,22 @@ final Map<String, String> trTR = {
   'status_rejected': 'Ret edildi',
   'reason': 'Sebäbi',
 
+  // Filter
+  'filter': 'Süzgüç',
+  'apply_filter': 'Tassyklamak',
+  'all': 'Hemmesi',
+  'search_author': 'Awtor gözle...',
+  'no_authors_found': 'Awtor tapylmady',
+  'age_range': 'Ýaş aralygy',
+  'year_range': 'Ýyl aralygy',
+  'years_old': 'ýaş',
+  'books_count': 'kitap',
+  'active_filters': 'Işjeň süzgüçler',
+  'format': 'Görnüş',
+  'format_all': 'Hemmesi',
+  'format_text': 'Tekst',
+  'format_audio': 'Ses',
+
   // Audio download
   'audiobook_downloaded_successfully': 'Audiokitap üstünlikli ýüklendi',
   'failed_to_download_audiobook': 'Audiokitap ýüklenende ýalňyşlyk: @error',

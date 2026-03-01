@@ -593,6 +593,22 @@ final Map<String, String> enUS = {
   'status_rejected': 'Rejected',
   'reason': 'Reason',
 
+  // Filter
+  'filter': 'Filter',
+  'apply_filter': 'Apply',
+  'all': 'All',
+  'search_author': 'Search author...',
+  'no_authors_found': 'No authors found',
+  'age_range': 'Age range',
+  'year_range': 'Year range',
+  'years_old': 'years',
+  'books_count': 'books',
+  'active_filters': 'Active filters',
+  'format': 'Format',
+  'format_all': 'All',
+  'format_text': 'Text',
+  'format_audio': 'Audio',
+
   // Audio download
   'audiobook_downloaded_successfully': 'Audiobook downloaded successfully',
   'failed_to_download_audiobook': 'Failed to download audiobook: @error',

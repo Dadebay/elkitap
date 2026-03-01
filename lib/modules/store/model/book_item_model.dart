@@ -77,6 +77,7 @@ class Book {
   final int? age;
   final int? year;
   final int? likedBookId;
+  final int? bookTranslateId;
   final List<BookAuthor> authors;
 
   Book({
@@ -89,6 +90,7 @@ class Book {
     this.year,
     this.progress,
     this.likedBookId,
+    this.bookTranslateId,
     required this.authors,
   });
 
@@ -109,6 +111,7 @@ class Book {
       year: json['year'],
       progress: json['progress'],
       likedBookId: json['liked_book_id'],
+      bookTranslateId: json['book_translate_id'],
       authors: authorsList,
     );
   }
@@ -124,6 +127,7 @@ class Book {
       'year': year,
       'progress': progress,
       'liked_book_id': likedBookId,
+      'book_translate_id': bookTranslateId,
       'authors': authors.map((author) => author.toJson()).toList(),
     };
   }

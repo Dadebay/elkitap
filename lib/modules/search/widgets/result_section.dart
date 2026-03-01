@@ -3,6 +3,7 @@ import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/theme/app_colors.dart';
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/core/widgets/states/loading_widget.dart';
+import 'package:elkitap/modules/search/controllers/filter_controller.dart';
 import 'package:elkitap/modules/search/controllers/search_controller.dart';
 import 'package:elkitap/modules/store/views/author_view.dart';
 import 'package:elkitap/modules/store/views/book_detail_view.dart';
@@ -205,14 +206,19 @@ class SearchResultsSection extends StatelessWidget {
   }
 
   Widget _buildBookItem(BuildContext context, dynamic book) {
-    final imageUrl = book.getFullImageUrl(ApiEndpoints.imageBaseUrl);
+    final isAudioFormat = Get.find<FilterController>().selectedFormat.value == 'audio';
+    // Use audio cover when audio format is active and audioImage is available,
+    // otherwise fall back to the regular book cover.
+    final rawImage = (isAudioFormat && book.audioImage != null && book.audioImage!.isNotEmpty) ? book.audioImage : book.image;
+    final imageUrl = (rawImage != null && rawImage.isNotEmpty) ? (rawImage.startsWith('http') ? rawImage : '${ApiEndpoints.imageBaseUrl}$rawImage') : null;
     final bookIndex = controller.books.indexOf(book);
 
     return Column(
       children: [
         InkWell(
           onTap: () {
-            Get.to(() => BookDetailView(book: book));
+            final isAudio = Get.find<FilterController>().selectedFormat.value == 'audio';
+            Get.to(() => BookDetailView(book: book, isAudio: isAudio));
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -222,7 +228,7 @@ class SearchResultsSection extends StatelessWidget {
                 // Book Cover Image
                 Container(
                   width: 60,
-                  height: 80,
+                  height: isAudioFormat ? 60 : 80,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
                     boxShadow: [

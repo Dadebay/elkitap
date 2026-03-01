@@ -35,6 +35,10 @@ class BooksDetailController extends GetxController {
 
   final selectedLanguage = 'Türkmençe'.obs;
   final selectedTranslateId = Rx<int?>(null);
+
+  /// Hint provided by the listing page (book_translate_id from books/all API).
+  /// If set and the matching translate exists after fetch, it becomes the default.
+  final Rx<int?> hintTranslateId = Rx<int?>(null);
   final wantsToFinishedBookId = false.obs;
   // Store the specific wants_to IDs - changed to bool
   final wantsToListenBookId = false.obs;
@@ -142,8 +146,14 @@ class BooksDetailController extends GetxController {
         bookDetail.value?.translates.asMap().forEach((index, translate) {});
 
         if (bookDetail.value!.translates.isNotEmpty) {
-          selectedLanguage.value = bookDetail.value!.translates.first.language;
-          selectedTranslateId.value = bookDetail.value!.translates.first.id;
+          final translates = bookDetail.value!.translates;
+          // Use hintTranslateId (book_translate_id from list API) if it matches
+          // one of the available translates; otherwise default to the first one.
+          final hint = hintTranslateId.value;
+          final hinted = hint != null ? translates.firstWhereOrNull((t) => t.id == hint) : null;
+          final defaultTranslate = hinted ?? translates.first;
+          selectedLanguage.value = defaultTranslate.language;
+          selectedTranslateId.value = defaultTranslate.id;
         }
       } else {
         hasError.value = true;
