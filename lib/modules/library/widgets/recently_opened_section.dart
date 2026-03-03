@@ -117,7 +117,10 @@ class _RecentlyOpenedSectionState extends State<RecentlyOpenedSection> {
                         tabIndex: 0,
                         onTap: () {
                           Get.to(
-                            () => BookDetailView(book: book),
+                            () => BookDetailView(
+                              book: book,
+                              isAudio: book.withAudio,
+                            ),
                             transition: Transition.rightToLeft,
                             duration: const Duration(milliseconds: 300),
                           );

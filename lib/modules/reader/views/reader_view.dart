@@ -145,6 +145,7 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
   int _restoreRetryCount = 0;
   int _restoreStuckAtZeroCount = 0; // counts onRelocated events where progress=0 while _isRestoringProgress
   bool _hasPostVppRestoreKick = false;
+  bool _hasAutoMarkedAsFinished = false;
 
   Map<String, int> _chapterPages = {};
 
@@ -293,6 +294,21 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
     }
 
     controller = Get.put(EpubController());
+
+    // Auto-mark as finished when 100% progress is saved for the first time
+    controller.onReachedLastPage = () {
+      if (_hasAutoMarkedAsFinished) return;
+      if (detailController.isMarkedAsFinished.value) {
+        _hasAutoMarkedAsFinished = true;
+        return;
+      }
+      _hasAutoMarkedAsFinished = true;
+      detailController.markAsFinished().then((success) {
+        if (success && mounted) {
+          log('✅ Book auto-marked as finished on last page');
+        }
+      });
+    };
 
     if (Get.isRegistered<NotesController>()) {
       notesController = Get.find<NotesController>();
@@ -569,9 +585,16 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       // and the user is taken back to the old server-side progress on next open.
       if (controller.currentPage.value == 0) {
         final effectiveTotal = _viewerTotalPages > 1 ? _viewerTotalPages : _liveTotalPages;
-        final effectivePage = _jsRawCurrentPage > 0 ? _jsRawCurrentPage : _viewerCurrentPage;
+        // Prefer progress-based page (JS reports 100% accurate progress even without VPP)
+        // over _jsRawCurrentPage which can be off by 2 when VPP never locked.
+        int effectivePage;
+        if (effectiveTotal > 1 && _lastRelocatedProgress > 0.0) {
+          effectivePage = (_lastRelocatedProgress >= 0.9995) ? effectiveTotal : ((_lastRelocatedProgress * effectiveTotal).round().clamp(1, effectiveTotal));
+        } else {
+          effectivePage = _jsRawCurrentPage > 0 ? _jsRawCurrentPage : _viewerCurrentPage;
+        }
         if (effectiveTotal > 1 && effectivePage > 0) {
-          log('💾 Pre-close force save (VPP never locked): page $effectivePage / $effectiveTotal');
+          log('💾 Pre-close force save (VPP never locked): progress=${(_lastRelocatedProgress * 100).toStringAsFixed(1)}% page=$effectivePage/$effectiveTotal');
           controller.onPageFlip(effectivePage, effectiveTotal);
           _saveTextProgressToAudio(effectivePage, effectiveTotal);
         }
@@ -721,7 +744,9 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
             final pendingMs = DateTime.now().difference(_vppPendingSince!).inMilliseconds;
             if (_viewerTotalPages <= 1 && pendingMs >= 1800) {
               _viewerTotalPages = totalPages;
-              // Keep _isLoadingPages = true to show loading indicator in page counter during VPP calibration
+              _isLoadingPages = false; // VPP may never calibrate — don't block the reader
+              _vppDisplayTimedOut = true; // hide calibrating spinner in page counter
+              _initialLoadingTimer?.cancel();
               _useManualSwipeFallback = true;
               _markReaderReadyIfPossible();
               log('⚡ Forced fallback after ${pendingMs}ms VPP pending. Using live pages: $totalPages');
@@ -773,12 +798,27 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
       if (totalPages > 1 && vppReady) {
         _cacheTotalPages(totalPages);
 
+        // When VPP is locked and JS reports 100% progress, snap currentPage to
+        // totalPages so the backend receives exactly 100 (fixes VPP off-by-one
+        // where JS total=377 but Flutter VPP total=378, yielding 99.7%).
+        if (_lastRelocatedProgress >= 0.9995 && currentPage < totalPages) {
+          currentPage = totalPages;
+        }
+
         if (!effectiveSkipProgressSave) {
           controller.onPageFlip(currentPage, totalPages);
           _saveTextProgressToAudio(currentPage, totalPages);
         } else {
           log('⏸️ Skipping progress save during initialization (page: $currentPage/$totalPages)');
         }
+      } else if (totalPages > 1 && _useManualSwipeFallback && !effectiveSkipProgressSave) {
+        // VPP never locked (0 samples), but manual-swipe fallback is active.
+        // JS provides highly accurate progress via _lastRelocatedProgress — use
+        // that directly so progress is saved even when VPP calibration fails.
+        final fallbackPage = (_lastRelocatedProgress >= 0.9995) ? totalPages : ((_lastRelocatedProgress * totalPages).round().clamp(1, totalPages));
+        log('📊 VPP-fallback save: progress=${(_lastRelocatedProgress * 100).toStringAsFixed(1)}%, page=$fallbackPage/$totalPages');
+        controller.onPageFlip(fallbackPage, totalPages);
+        _saveTextProgressToAudio(fallbackPage, totalPages);
       } else if (totalPages > 1) {
         log('⏸️ Waiting VPP lock before cache/save (samples=$vppSampleCount, pending=$totalPages pages)');
       }
@@ -821,9 +861,11 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
             if (mounted) {
               setState(() {
                 _viewerTotalPages = _liveTotalPages;
-                // Keep _isLoadingPages = true to show loading indicator during VPP calibration
+                _isLoadingPages = false; // VPP may never calibrate — don't block the reader
+                _vppDisplayTimedOut = true; // hide calibrating spinner in page counter
                 _useManualSwipeFallback = true;
               });
+              _initialLoadingTimer?.cancel();
             }
 
             _markReaderReadyIfPossible();
@@ -1022,6 +1064,17 @@ class _EpubReaderScreenState extends State<EpubReaderScreen> with ProgressSyncMi
 
         if (fileSize > 0) {
           setState(() => _downloadProgress = 0.90);
+
+          // Fire a background signed-URL request so the server registers this
+          // book as "recently opened" even when we serve it from local cache.
+          if (widget.epubPath != null && widget.epubPath!.isNotEmpty) {
+            BookDownloadService(
+              networkManager: _networkManager,
+              onProgressUpdate: (_) {},
+              onError: (_) {},
+            ).fetchSignedUrl(widget.epubPath!).catchError((_) => <String, dynamic>{});
+            log('🔄 Background signed-URL fetch fired (cache hit) — registers recently opened');
+          }
 
           _showReader(localPath);
           return;

@@ -30,21 +30,21 @@ class SearchResultsSection extends StatelessWidget {
       final hasMoreBooks = controller.hasMoreBooks.value;
 
       // Show empty state when mode-filtered results are empty
-      if (authors.isEmpty && books.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(
-              'no_more_results'.tr,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[500],
-                fontFamily: StringConstants.GilroyMedium,
-              ),
-            ),
-          ),
-        );
-      }
+      // if (authors.isEmpty && books.isEmpty) {
+      //   return Center(
+      //     child: Padding(
+      //       padding: const EdgeInsets.all(32),
+      //       child: Text(
+      //         'no_more_results'.tr,
+      //         style: TextStyle(
+      //           fontSize: 16,
+      //           color: Colors.grey[500],
+      //           fontFamily: StringConstants.GilroyMedium,
+      //         ),
+      //       ),
+      //     ),
+      //   );
+      // }
 
       return ListView.builder(
         controller: scrollController,
@@ -346,21 +346,21 @@ class SearchResultsSection extends StatelessWidget {
       );
     }
 
-    if (!hasMoreBooks) {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: Text(
-            'no_more_results'.tr,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-              fontFamily: StringConstants.SFPro,
-            ),
-          ),
-        ),
-      );
-    }
+    // if (!hasMoreBooks) {
+    //   return Padding(
+    //     padding: const EdgeInsets.all(16.0),
+    //     child: Center(
+    //       child: Text(
+    //         'no_more_results'.tr,
+    //         style: TextStyle(
+    //           color: Colors.grey[600],
+    //           fontSize: 14,
+    //           fontFamily: StringConstants.SFPro,
+    //         ),
+    //       ),
+    //     ),
+    //   );
+    // }
 
     return const SizedBox.shrink();
   }

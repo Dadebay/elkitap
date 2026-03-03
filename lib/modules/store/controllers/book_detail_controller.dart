@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:elkitap/data/network/api_edpoints.dart';
 import 'package:elkitap/data/network/network_manager.dart';
+import 'package:elkitap/modules/audio_player/controllers/audio_player_controller.dart';
 import 'package:elkitap/modules/auth/widget/login_bottom_sheet.dart';
 import 'package:elkitap/modules/store/model/book_detail_model.dart';
 import 'package:get/get.dart';
@@ -79,11 +80,16 @@ class BooksDetailController extends GetxController {
     isDescriptionExpanded.value = !isDescriptionExpanded.value;
   }
 
-  Future<void> fetchBookDetail(int bookId) async {
+  /// [silent] = true: fetches in the background without showing a loading
+  /// spinner. Used when cached data already exists but we still need to ping
+  /// the backend (e.g. to register the book as recently opened).
+  Future<void> fetchBookDetail(int bookId, {bool silent = false}) async {
     try {
-      isLoading.value = true;
-      hasError.value = false;
-      errorMessage.value = '';
+      if (!silent) {
+        isLoading.value = true;
+        hasError.value = false;
+        errorMessage.value = '';
+      }
 
       // Only send with_audio parameter when audio mode is active
       // When text mode is active, don't send the parameter to get all translations
@@ -160,10 +166,14 @@ class BooksDetailController extends GetxController {
         errorMessage.value = response['error'] ?? 'Failed to load book details';
       }
     } catch (e) {
-      hasError.value = true;
-      errorMessage.value = e.toString();
+      if (!silent) {
+        hasError.value = true;
+        errorMessage.value = e.toString();
+      }
     } finally {
-      isLoading.value = false;
+      if (!silent) {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -538,6 +548,17 @@ class BooksDetailController extends GetxController {
   void toggleToText() {
     isAudio.value = false;
     updateWantToReadState();
+
+    // Stop audio and hide mini player when switching to text mode
+    try {
+      if (Get.isRegistered<AudioPlayerController>()) {
+        Get.find<AudioPlayerController>().stopAudio();
+      }
+      if (Get.isRegistered<GlobalMiniPlayerController>()) {
+        Get.find<GlobalMiniPlayerController>().hide();
+      }
+    } catch (_) {}
+
     // Refresh book detail to get all translations without audio filter
     if (bookDetail.value != null) {
       fetchBookDetail(bookDetail.value!.id);

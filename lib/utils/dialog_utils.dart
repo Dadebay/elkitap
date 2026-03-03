@@ -7,6 +7,7 @@ import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/core/widgets/common/custom_icon.dart';
 import 'package:elkitap/modules/library/controllers/downloaded_controller.dart';
+import 'package:elkitap/modules/audio_player/controllers/audio_player_controller.dart';
 import 'package:elkitap/modules/store/controllers/book_detail_controller.dart';
 
 import 'package:elkitap/modules/reader/views/reader_view.dart';
@@ -163,26 +164,24 @@ class DialogUtils {
     final book = controller.bookDetail.value;
 
     final box = context.findRenderObject() as RenderBox?;
-    final rect = box != null ? box.localToGlobal(Offset.zero) & box.size : const Rect.fromLTWH(0, 0, 0, 0); // Fallback
+    final rect = box != null ? box.localToGlobal(Offset.zero) & box.size : const Rect.fromLTWH(0, 0, 0, 0);
 
     if (book != null) {
-      String shareText = '';
+      final deepLink = DeepLinkService.generateBookDeepLink(book.id);
+      final uri = Uri.parse(deepLink);
 
-      shareText += '${book.name}\n';
-      shareText += 'by ${book.authors.map((author) => author.name).join(', ')}\n\n';
+      print('🔗 Share DEBUG:');
+      print('   deepLink: $deepLink');
+      print('   uri: $uri');
+      print('   book.id: ${book.id}');
 
-      // Generate deep link
-      String deepLink = DeepLinkService.generateBookDeepLink(book.id);
-      shareText += 'Open in ElKitap: $deepLink';
-
-      // Share the book
-      Share.share(
-        shareText,
-        subject: '${book.name}',
+      // Share as URI so iOS recognizes it as a URL, not a search query.
+      // subject carries the book name + author for email/message apps.
+      Share.shareUri(
+        uri,
         sharePositionOrigin: rect,
       );
     } else {
-      // Fallback if book details aren't available
       Share.share(
         'Check out this amazing book on ElKitap!',
         sharePositionOrigin: rect,
@@ -1320,6 +1319,13 @@ class DialogUtils {
                 ))
             .toList(),
       );
+
+      // Fully clear audio (stops iOS Now Playing, lock screen, mini player)
+      try {
+        if (Get.isRegistered<AudioPlayerController>()) {
+          await Get.find<AudioPlayerController>().clearAudio();
+        }
+      } catch (_) {}
 
       Get.back(); // Close audio player
 

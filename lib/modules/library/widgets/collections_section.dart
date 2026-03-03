@@ -41,8 +41,12 @@ class _CollectionsSectionState extends State<CollectionsSection> {
   }
 
   Future<void> _fetchCounts() async {
-    await readingListController.getCounts();
-    await notesController.fetchBookNotes();
+    // Defer until after the first frame so no observable is mutated
+    // while the widget tree is still being built (avoids markNeedsBuild error).
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await readingListController.getCounts();
+      await notesController.fetchBookNotes();
+    });
   }
 
   @override

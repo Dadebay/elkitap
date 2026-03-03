@@ -77,7 +77,7 @@ class ActiveFiltersBar extends StatelessWidget {
       // Year chip
       if (filterController.startYear.value != null || filterController.endYear.value != null) {
         chips.add(_buildActiveChip(
-          '${filterController.startYear.value ?? 1900}-${filterController.endYear.value ?? DateTime.now().year}',
+          '${filterController.startYear.value ?? 1300}-${filterController.endYear.value ?? DateTime.now().year}',
           () {
             filterController.startYear.value = null;
             filterController.endYear.value = null;

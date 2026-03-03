@@ -724,9 +724,9 @@ class _FilterPageState extends State<FilterPage> {
               ),
               child: RangeSlider(
                 values: fc.tempYearRange.value,
-                min: 1900,
+                min: 1300,
                 max: currentYear.toDouble(),
-                divisions: currentYear - 1900,
+                divisions: currentYear - 1300,
                 labels: RangeLabels(
                   '${fc.tempYearRange.value.start.round()}',
                   '${fc.tempYearRange.value.end.round()}',

@@ -202,7 +202,10 @@ class _BooksGridScreenState extends State<BooksGridScreen> {
                       book: book,
                       tabIndex: widget.isAudio ? 1 : 0,
                       onTap: () {
-                        Get.to(() => BookDetailView(book: book));
+                        Get.to(() => BookDetailView(
+                              book: book,
+                              isAudio: book.withAudio,
+                            ));
                       },
                       discountPercentage: 2,
                     );

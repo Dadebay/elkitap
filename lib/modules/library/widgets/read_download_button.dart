@@ -524,14 +524,7 @@ class _ReadDownloadButtonState extends State<ReadDownloadButton> {
       child: Container(
         height: 50,
         width: double.infinity,
-        decoration: BoxDecoration(
-          color: widget.accent,
-          borderRadius: widget.borderRadius ??
-              const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-        ),
+        decoration: BoxDecoration(color: widget.accent, borderRadius: BorderRadius.circular(20)),
         child: Center(
           child: Text(
             "read_button_action_t".tr,

@@ -54,30 +54,30 @@ class BookActionButtons extends StatelessWidget {
         final progress = controller.getProgressPercentage();
         final showProgress = controller.bookDetail.value?.progress != null;
 
-        // Both versions available → show side by side
-        if (hasText && hasAudio) {
-          return Row(
-            children: [
-              Expanded(
-                child: _buildReadButton(
-                  hasText,
-                  context,
-                  showProgress: showProgress,
-                  progressText: progress,
-                ),
-              ),
-              // const SizedBox(width: 12),
-              Expanded(
-                child: _buildListenButton(
-                  hasAudio,
-                  context,
-                  showProgress: showProgress,
-                  progressText: progress,
-                ),
-              ),
-            ],
-          );
-        }
+        // // Both versions available → show side by side
+        // if (hasText && hasAudio) {
+        //   return Row(
+        //     children: [
+        //       Expanded(
+        //         child: _buildReadButton(
+        //           hasText,
+        //           context,
+        //           showProgress: showProgress,
+        //           progressText: progress,
+        //         ),
+        //       ),
+        //       // const SizedBox(width: 12),
+        //       Expanded(
+        //         child: _buildListenButton(
+        //           hasAudio,
+        //           context,
+        //           showProgress: showProgress,
+        //           progressText: progress,
+        //         ),
+        //       ),
+        //     ],
+        //   );
+        // }
 
         return Column(
           children: [
@@ -110,9 +110,7 @@ class BookActionButtons extends StatelessWidget {
     String? progressText,
   }) {
     // Shared style for uniform look
-    final borderRadius = BorderRadius.circular(12);
     final color = const Color(0xFFFF5A3C);
-    final hasAudio = controller.hasAudioVersion();
 
     if (hasText) {
       final AuthController authController = Get.find<AuthController>();
@@ -141,7 +139,6 @@ class BookActionButtons extends StatelessWidget {
             controller: controller,
             book: bookDetail,
             accent: color,
-            borderRadius: hasAudio ? null : borderRadius,
             showProgress: showProgress,
             progressText: progressText,
           ),
@@ -168,7 +165,6 @@ class BookActionButtons extends StatelessWidget {
               controller: controller,
               book: bookDetail,
               accent: color,
-              borderRadius: hasAudio ? null : borderRadius,
               showProgress: showProgress,
               progressText: progressText,
             ),
@@ -188,7 +184,6 @@ class BookActionButtons extends StatelessWidget {
               controller: controller,
               book: bookDetail,
               accent: color,
-              borderRadius: hasAudio ? null : borderRadius,
               showProgress: showProgress,
               progressText: progressText,
             ),
@@ -203,7 +198,7 @@ class BookActionButtons extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.grey.withValues(alpha: 0.3),
-        borderRadius: borderRadius,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Center(
         child: Text(
@@ -255,7 +250,7 @@ class BookActionButtons extends StatelessWidget {
         margin: EdgeInsets.only(left: 2),
         decoration: BoxDecoration(
           color: hasAudio ? color : Colors.grey.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.only(bottomRight: Radius.circular(12), topRight: Radius.circular(12)),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Center(
           child: controller.isLoadingAudio.value && hasAudio

@@ -521,6 +521,39 @@ class AudioPlayerController extends GetxController {
     }
   }
 
+  /// Completely clears the audio from iOS Now Playing / lock screen.
+  /// Use this when navigating away from audio (e.g. switching to text reader).
+  Future<void> clearAudio() async {
+    try {
+      // stop() calls super.stop() which removes the iOS Now Playing entry
+      await _handler.stop();
+      isPlaying.value = false;
+
+      // Clear mediaItem so iOS lock screen / control center disappear
+      _handler.mediaItem.add(null);
+
+      // Reset book info so the mini player has nothing to show
+      audioSource.value = '';
+      currentBookId.value = 0;
+      currentBookTitle.value = '';
+      currentBookAuthor.value = '';
+      currentBookCover.value = '';
+      _hasRestoredProgress = false;
+
+      // Stop local HLS server if running
+      await _hlsServer.stop();
+
+      // Hide mini player
+      try {
+        if (Get.isRegistered<GlobalMiniPlayerController>()) {
+          Get.find<GlobalMiniPlayerController>().hide();
+        }
+      } catch (_) {}
+    } catch (e) {
+      log('Error clearing audio: $e');
+    }
+  }
+
   @override
   void onClose() {
     try {

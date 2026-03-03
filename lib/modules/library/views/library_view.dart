@@ -10,6 +10,7 @@ import 'package:elkitap/modules/library/widgets/library_header.dart';
 import 'package:elkitap/modules/library/widgets/recently_opened_section.dart';
 import 'package:elkitap/modules/library/widgets/suggest_content_widget.dart';
 import 'package:elkitap/modules/notifications/controllers/notification_controller.dart';
+import 'package:elkitap/modules/store/controllers/all_books_controller.dart';
 import 'package:elkitap/modules/store/views/book_detail_view.dart';
 
 import 'package:flutter/material.dart';
@@ -42,6 +43,14 @@ class MyLibraryViewScreen extends StatelessWidget {
 
     await downloadController.getStorageInfo();
     libraryMainController.onInit();
+
+    try {
+      if (Get.isRegistered<GetAllBooksController>(tag: 'recently_opened')) {
+        await Get.find<GetAllBooksController>(tag: 'recently_opened').getRecentlyOpenedBooks();
+      }
+    } catch (e) {
+      print('Refresh: RecentlyOpenedSection error: $e');
+    }
 
     await Future.delayed(const Duration(milliseconds: 300));
   }

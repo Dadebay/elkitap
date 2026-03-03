@@ -122,11 +122,16 @@ class _BookDetailViewState extends State<BookDetailView> with WidgetsBindingObse
 
   void _fetchBookDetail() {
     if (controller.bookDetail.value == null) {
+      // First open: fetch normally with loading indicator.
       controller.fetchBookDetail(resolvedBookId).then((_) {
         Future.delayed(const Duration(seconds: 2), () {
           _refreshProgress();
         });
       });
+    } else {
+      // Already cached: silently hit the backend so the server registers
+      // this as a recent open (no loading spinner shown to the user).
+      controller.fetchBookDetail(resolvedBookId, silent: true);
     }
   }
 

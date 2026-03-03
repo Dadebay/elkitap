@@ -100,20 +100,26 @@ class _RecentlyViewedSectionState extends State<RecentlyViewedSection> {
                       ),
                     );
                   },
-                  child: Padding(
-                    padding: EdgeInsets.only(right: isLast ? 0 : 12),
-                    child: BookCardReOpen(
-                      book: book,
-                      index: index,
-                      tabIndex: 0,
-                      onTap: () {
-                        Get.to(
-                          () => BookDetailView(book: book),
-                          transition: Transition.rightToLeft,
-                          duration: const Duration(milliseconds: 300),
-                        );
-                      },
-                      progress: 0.0,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(right: isLast ? 0 : 12),
+                      child: BookCardReOpen(
+                        book: book,
+                        index: index,
+                        tabIndex: book.withAudio ? 1 : 0,
+                        onTap: () {
+                          Get.to(
+                            () => BookDetailView(
+                              book: book,
+                              isAudio: book.withAudio,
+                            ),
+                            transition: Transition.rightToLeft,
+                            duration: const Duration(milliseconds: 300),
+                          );
+                        },
+                        progress: 0.0,
+                      ),
                     ),
                   ),
                 );

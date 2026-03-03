@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import 'dart:async';
@@ -13,6 +14,9 @@ class EpubController extends GetxController {
   var totalPages = 0.obs;
   var isAtLastPage = false.obs;
   var isProgressSaving = false.obs;
+
+  /// Called once after progress is successfully saved as 100%.
+  VoidCallback? onReachedLastPage;
 
   int? _currentBookId;
   NetworkManager? _networkManager;
@@ -43,9 +47,7 @@ class EpubController extends GetxController {
 
   // Save progress directly to API
   Future<void> _saveProgress() async {
-    if (_currentBookId == null ||
-        totalPages.value == 0 ||
-        _networkManager == null) {
+    if (_currentBookId == null || totalPages.value == 0 || _networkManager == null) {
       return;
     }
 
@@ -56,7 +58,9 @@ class EpubController extends GetxController {
     try {
       isProgressSaving.value = true;
 
-      final progress = currentPage.value / totalPages.value;
+      // Clamp to 1.0 when on the last page to avoid 99% due to off-by-one
+      final rawProgress = currentPage.value / totalPages.value;
+      final progress = (currentPage.value >= totalPages.value) ? 1.0 : rawProgress;
 
       log("✅ Cosmos save backend succes %%% $progress");
 
@@ -75,6 +79,12 @@ class EpubController extends GetxController {
         final progressPercentage = (progress * 100).toStringAsFixed(1);
         _storage.write('book_${_currentBookId}_progress', progressPercentage);
         log("💾 Saved progress to local storage: $progressPercentage%");
+
+        // Notify listener when 100% is reached for auto-mark-as-finished.
+        // Use 0.995 threshold to also cover VPP off-by-one cases.
+        if (progress >= 0.995 && onReachedLastPage != null) {
+          onReachedLastPage!();
+        }
       } else {}
     } catch (e) {
     } finally {

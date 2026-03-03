@@ -382,6 +382,8 @@ final Map<String, String> trTR = {
   'continueOffline': 'Oflaýn dowam et',
   'downloadBookTitle': 'Kitaby ýüklemek',
   'downloadBookContent': '"@bookTitle" -y şifrlemek bilen onlaýn okamak üçin ýüklemek?',
+  'downloadAudioTitle': 'Audio ýüklemek',
+  'downloadAudioContent': '"@bookTitle" üçin audio-y şifrlemek bilen diňlemek üçin ýüklemek?',
   'downloadingAndEncrypting': 'Kitap ýüklenýär...',
   'bookDownloadedSuccessfully': '"@bookTitle" üstünlikli ýüklenildi we şifrelendi!',
   'ok': 'Bolýar',

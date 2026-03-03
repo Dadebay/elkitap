@@ -151,11 +151,7 @@ class DeepLinkService {
 
   /// Generate deep link for sharing
   static String generateBookDeepLink(int bookId) {
-    // Custom scheme (works only with app installed)
-    return 'elkitap.com.tm/books/$bookId';
-
-    // If you have a web domain, use this instead:
-    // return 'https://elkitap.com/books/$bookId';
+    return 'https://elkitap.com.tm/books/$bookId';
   }
 
   /// Generate web fallback link

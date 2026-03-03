@@ -710,9 +710,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               ),
               child: RangeSlider(
                 values: filterController.tempYearRange.value,
-                min: 1900,
+                min: 1300,
                 max: currentYear.toDouble(),
-                divisions: currentYear - 1900,
+                divisions: currentYear - 1300,
                 labels: RangeLabels(
                   '${filterController.tempYearRange.value.start.round()}',
                   '${filterController.tempYearRange.value.end.round()}',

@@ -210,11 +210,22 @@ class SearchResultsController extends GetxController {
         queryParams.addAll(filterController.buildFilterParams());
       }
 
+      log('🔍 [_fetchBooks] ===== API REQUEST =====');
+      log('🔍 [_fetchBooks] Endpoint: ${ApiEndpoints.allBooks}');
+      log('🔍 [_fetchBooks] Params: $queryParams');
+
       final response = await _networkManager.get(
         ApiEndpoints.allBooks,
         sendToken: true,
         queryParameters: queryParams,
       );
+
+      log('🔍 [_fetchBooks] ===== API RESPONSE =====');
+      log('🔍 [_fetchBooks] success: ${response['success']}');
+      log('🔍 [_fetchBooks] full response keys: ${response.keys.toList()}');
+      log('🔍 [_fetchBooks] data: ${response['data']}');
+      if (response['message'] != null) log('🔍 [_fetchBooks] message: ${response['message']}');
+      if (response['error'] != null) log('🔍 [_fetchBooks] error: ${response['error']}');
 
       if (response['success']) {
         final data = response['data'];
@@ -245,32 +256,44 @@ class SearchResultsController extends GetxController {
   }
 
   // Load more books (pagination)
+  // Works for both search-query mode and filter-only mode.
   Future<void> loadMoreBooks() async {
-    if (isLoadingMore.value || !hasMoreBooks.value || isLoading.value || searchQuery.value.isEmpty) {
-      return;
-    }
+    if (isLoadingMore.value || !hasMoreBooks.value || isLoading.value) return;
+
+    // In filter-only mode searchQuery is empty but we still paginate.
+    final isFilterMode = searchQuery.value.isEmpty && Get.isRegistered<FilterController>() && Get.find<FilterController>().hasActiveFilters;
+
+    if (searchQuery.value.isEmpty && !isFilterMode) return;
 
     currentBookPage.value++;
-    await _fetchBooks(searchQuery.value, isLoadMore: true);
+    if (isFilterMode) {
+      await _fetchFilteredBooksPage();
+    } else {
+      await _fetchBooks(searchQuery.value, isLoadMore: true);
+    }
   }
 
   // Re-apply search with current filters
   Future<void> reSearchWithFilters() async {
-    if (searchQuery.value.isEmpty) {
-      // If no search query, fetch all books with filters only
+    final filterCtrl = Get.isRegistered<FilterController>() ? Get.find<FilterController>() : null;
+    final hasFilters = filterCtrl?.hasActiveFilters ?? false;
+
+    if (searchQuery.value.isNotEmpty) {
+      // Has a search query — redo the search with new filters applied
+      await searchAuthors(searchQuery.value);
+    } else if (hasFilters) {
+      // No query but filters active — fetch filtered books
       await _fetchFilteredBooks();
-      return;
+    } else {
+      // No query, no filters — clear results so UI shows history/empty
+      books.clear();
+      authors.clear();
     }
-    await searchAuthors(searchQuery.value);
   }
 
-  // Fetch books with filters only (no search query needed)
+  // Fetch books with filters only (no search query needed).
+  // Called when filters are active but searchQuery is empty.
   Future<void> _fetchFilteredBooks() async {
-    if (Get.isRegistered<FilterController>()) {
-      final filterController = Get.find<FilterController>();
-      if (!filterController.hasActiveFilters) return;
-    }
-
     try {
       isLoading.value = true;
       errorMessage.value = '';
@@ -285,9 +308,10 @@ class SearchResultsController extends GetxController {
       };
 
       if (Get.isRegistered<FilterController>()) {
-        final filterController = Get.find<FilterController>();
-        queryParams.addAll(filterController.buildFilterParams());
+        queryParams.addAll(Get.find<FilterController>().buildFilterParams());
       }
+
+      log('🔍 [_fetchFilteredBooks] Params: $queryParams');
 
       final response = await _networkManager.get(
         ApiEndpoints.allBooks,
@@ -299,17 +323,55 @@ class SearchResultsController extends GetxController {
         final data = response['data'];
         if (data != null && data is Map<String, dynamic>) {
           final List<dynamic> items = data['items'] ?? [];
-          final newBooks = items.map((json) => Book.fromJson(json)).toList();
-          books.assignAll(newBooks);
-
+          books.assignAll(items.map((json) => Book.fromJson(json)).toList());
           final int total = data['totalCount'] ?? 0;
           hasMoreBooks.value = (1 * 20) < total;
+          log('🔍 [_fetchFilteredBooks] Loaded ${books.length} books, total=$total');
         }
       }
     } catch (e) {
       errorMessage.value = 'An error occurred: $e';
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // Fetch next page for filter-only mode (pagination)
+  Future<void> _fetchFilteredBooksPage() async {
+    try {
+      isLoadingMore.value = true;
+
+      final Map<String, String> queryParams = {
+        'page': currentBookPage.value.toString(),
+        'size': '20',
+      };
+
+      if (Get.isRegistered<FilterController>()) {
+        queryParams.addAll(Get.find<FilterController>().buildFilterParams());
+      }
+
+      log('🔍 [_fetchFilteredBooksPage] page=${currentBookPage.value} Params: $queryParams');
+
+      final response = await _networkManager.get(
+        ApiEndpoints.allBooks,
+        sendToken: true,
+        queryParameters: queryParams,
+      );
+
+      if (response['success']) {
+        final data = response['data'];
+        if (data != null && data is Map<String, dynamic>) {
+          final List<dynamic> items = data['items'] ?? [];
+          books.addAll(items.map((json) => Book.fromJson(json)).toList());
+          final int total = data['totalCount'] ?? 0;
+          hasMoreBooks.value = (currentBookPage.value * 20) < total;
+          log('🔍 [_fetchFilteredBooksPage] Appended ${items.length} books, total=${books.length}');
+        }
+      }
+    } catch (e) {
+      log('🔍 [_fetchFilteredBooksPage] error: $e');
+    } finally {
+      isLoadingMore.value = false;
     }
   }
 

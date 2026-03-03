@@ -71,7 +71,7 @@ class FilterController extends GetxController {
   final RxList<int> tempAuthorIds = <int>[].obs;
   final RxList<int> tempGenreIds = <int>[].obs;
   final Rx<RangeValues> tempAgeRange = Rx<RangeValues>(const RangeValues(0, 18));
-  final Rx<RangeValues> tempYearRange = Rx<RangeValues>(RangeValues(1900, DateTime.now().year.toDouble()));
+  final Rx<RangeValues> tempYearRange = Rx<RangeValues>(RangeValues(1300, DateTime.now().year.toDouble()));
   final RxBool isAgeFilterEnabled = false.obs;
   final RxBool isYearFilterEnabled = false.obs;
 
@@ -123,7 +123,7 @@ class FilterController extends GetxController {
       );
     } else {
       isYearFilterEnabled.value = false;
-      tempYearRange.value = RangeValues(1900, DateTime.now().year.toDouble());
+      tempYearRange.value = RangeValues(1300, DateTime.now().year.toDouble());
     }
   }
 
@@ -184,7 +184,7 @@ class FilterController extends GetxController {
     isAgeFilterEnabled.value = false;
     isYearFilterEnabled.value = false;
     tempAgeRange.value = const RangeValues(0, 18);
-    tempYearRange.value = RangeValues(1900, DateTime.now().year.toDouble());
+    tempYearRange.value = RangeValues(1300, DateTime.now().year.toDouble());
   }
 
   /// Build query parameters map for API call
@@ -224,6 +224,12 @@ class FilterController extends GetxController {
     if (endYear.value != null) {
       params['end_year'] = endYear.value.toString();
     }
+
+    log('🔧 [buildFilterParams] result: $params');
+    log('🔧 [buildFilterParams] raw selectedGenreIds: $selectedGenreIds');
+    log('🔧 [buildFilterParams] raw selectedAuthorIds: $selectedAuthorIds');
+    log('🔧 [buildFilterParams] selectedLanguageId: ${selectedLanguageId.value}');
+    log('🔧 [buildFilterParams] selectedFormat: ${selectedFormat.value}');
 
     return params;
   }

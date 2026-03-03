@@ -56,8 +56,10 @@ class ProfileCardUser extends StatelessWidget {
         ],
       ),
       child: Obx(() {
-        // Reactive: get fresh user data inside Obx so it updates when subscription changes
-        final currentUser = user ?? authController.currentUser.value;
+        // Always read the reactive value so Obx has at least one subscription,
+        // even when a static `user` is passed as parameter.
+        final reactiveUser = authController.currentUser.value;
+        final currentUser = user ?? reactiveUser;
         final username = currentUser?.username ?? 'user'.tr;
         final phone = currentUser?.phone ?? '';
         final subscription = currentUser?.subscription;
@@ -130,12 +132,11 @@ class ProfileCardUser extends StatelessWidget {
                 ],
               ),
             ),
-            if (paymentController.isPaymentActive.value)
-              !isSubscribed
-                  ? NotSubscribedView(onSubscribe: onSubscribe)
-                  : SubscribedView(
-                      subscription: subscription!,
-                    ),
+            !isSubscribed
+                ? NotSubscribedView(onSubscribe: onSubscribe)
+                : SubscribedView(
+                    subscription: subscription!,
+                  ),
           ],
         );
       }),

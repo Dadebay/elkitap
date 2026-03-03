@@ -388,6 +388,8 @@ final Map<String, String> ruRU = {
   'bookFileNotAvailable': 'Файл книги недоступен',
   'downloadBookTitle': 'Скачать книгу',
   'downloadBookContent': 'Скачать "@bookTitle" для чтения в автономном режиме с шифрованием?',
+  'downloadAudioTitle': 'Скачать аудио',
+  'downloadAudioContent': 'Скачать аудио для "@bookTitle" для прослушивания в автономном режиме с шифрованием?',
   'downloadingAndEncrypting': 'Загрузка книги...',
   'bookDownloadedSuccessfully': '"@bookTitle" успешно загружена и зашифрована!',
   'ok': 'OK',

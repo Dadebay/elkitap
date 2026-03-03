@@ -30,7 +30,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:restart_app/restart_app.dart';
 
 class SettingsList extends StatefulWidget {
   const SettingsList({super.key});
@@ -396,13 +395,6 @@ class _SettingsListState extends State<SettingsList> {
       Get.put(ConnectionController());
       Get.put(ContactsController());
       Get.put(PromoCodeController());
-
-      // Wait a bit for controllers to be initialized
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // Restart the entire app to apply language changes and refetch all data
-      // This ensures all API calls use the new content-language header
-      Restart.restartApp();
     }
   }
 

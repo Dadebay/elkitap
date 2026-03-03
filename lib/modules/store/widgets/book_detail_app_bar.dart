@@ -134,127 +134,218 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
     final downloadController = Get.find<DownloadController>();
 
     return Obx(() {
-      // Get book details
-      final translate = controller.getCurrentTranslate();
-      final bookKey = translate?.bookKey;
-      final baseBookId = controller.bookDetail.value?.id.toString() ?? '0';
-      final bookId = translate != null ? '${baseBookId}_t${translate.id}' : baseBookId;
-
-      // Check if book is downloaded
-      final isDownloaded = downloadController.downloadedBooks.any(
-        (b) => b.id == bookId && !b.isAudio,
-      );
-
-      // Check if this book is currently being downloaded
+      final isAudioTab = controller.isAudio.value;
       final isLoading = downloadController.isLoading.value;
       final progress = downloadController.downloadProgress.value;
 
-      return GestureDetector(
-        onTap: () async {
-          if (isLoading || isDownloaded) {
-            // If downloading or already downloaded, navigate to downloads
-            Get.to(() => const DownloadedListScreen());
-            return;
-          }
+      if (isAudioTab) {
+        // ── AUDIO TAB ──────────────────────────────────────────────────────
+        final baseBookId = controller.bookDetail.value?.id.toString() ?? '0';
+        final isDownloaded = downloadController.downloadedBooks.any(
+          (b) => b.id == baseBookId && b.isAudio,
+        );
 
-          // Start download
-          if (bookKey == null || bookKey.isEmpty) {
-            AppSnackbar.error('bookFileNotAvailable'.tr);
-            return;
-          }
+        return GestureDetector(
+          onTap: () async {
+            if (isLoading) {
+              _showCancelDownloadDialog(downloadController);
+              return;
+            }
 
-          final bookTitle = translate != null ? '${translate.name} (${translate.language})' : (translate?.name ?? 'unknown'.tr);
-          final imageUrl = controller.getBookCoverImage();
-          final book = controller.bookDetail.value;
-          final author = book?.authors.isNotEmpty == true ? book!.authors.first.name : 'unknown_author'.tr;
+            if (isDownloaded) {
+              Get.to(() => const DownloadedListScreen());
+              return;
+            }
 
-          // Show confirmation dialog
-          final confirmed = await _showDownloadConfirmationDialog(
-            context,
-            bookTitle,
-          );
+            // Fetch HLS URL if not yet loaded
+            String hlsUrl = controller.audioHlsUrl.value;
+            if (hlsUrl.isEmpty) {
+              await controller.fetchAudioHlsUrl();
+              hlsUrl = controller.audioHlsUrl.value;
+            }
 
-          if (confirmed != true) return;
+            if (hlsUrl.isEmpty) {
+              AppSnackbar.error('bookFileNotAvailable'.tr);
+              return;
+            }
 
-          try {
-            // Show loading dialog
-            _showLoadingDialog(context);
+            final book = controller.bookDetail.value;
+            final translate = controller.getCurrentTranslate();
+            final bookTitle = translate?.name ?? 'unknown_title'.tr;
+            final imageUrl = controller.getBookCoverImage();
+            final author = book?.authors.isNotEmpty == true ? book!.authors.first.name : 'unknown_author'.tr;
 
-            // Download and encrypt book
-            await downloadController.downloadAndEncryptBook(
-              bookId: bookId,
-              bookKey: bookKey,
-              bookTitle: bookTitle,
-              imageUrl: imageUrl,
-              author: author,
-            );
+            final confirmed = await _showDownloadConfirmationDialog(context, bookTitle, isAudio: true);
+            if (confirmed != true) return;
 
-            // Close loading dialog
-            if (Get.isDialogOpen ?? false) Get.back();
-
-            // Show success dialog
-            _showSuccessDialog(context, bookTitle);
-          } catch (e) {
-            // Close loading dialog if open
-            if (Get.isDialogOpen ?? false) Get.back();
-
-            AppSnackbar.error('failedToDownload'.trParams({'error': e.toString()}));
-          }
-        },
-        child: Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: isDownloaded
-                ? const Color(0xFF34C759)
-                : Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[700]
-                    : Colors.grey[200],
-            shape: BoxShape.circle,
-          ),
-          child: isLoading
-              ? SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: progress > 0 && progress < 1.0 ? progress : null,
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                        backgroundColor: Colors.white24,
-                      ),
-                      if (progress > 0 && progress < 1.0)
-                        Text(
-                          '${(progress * 100).toInt()}%',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 7,
-                            fontWeight: FontWeight.bold,
-                          ),
+            try {
+              await downloadController.downloadAndEncryptAudioBook(
+                bookId: baseBookId,
+                bookTitle: bookTitle,
+                imageUrl: imageUrl,
+                author: author,
+                hlsUrl: hlsUrl,
+              );
+              final didDownload = downloadController.downloadedBooks.any(
+                (b) => b.id == baseBookId && b.isAudio,
+              );
+              if (didDownload) {
+                _showSuccessDialog(context, bookTitle);
+              }
+            } catch (e) {
+              AppSnackbar.error('failedToDownload'.trParams({'error': e.toString()}));
+            }
+          },
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: isDownloaded
+                  ? const Color(0xFF34C759)
+                  : Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[700]
+                      : Colors.grey[200],
+              shape: BoxShape.circle,
+            ),
+            child: isLoading
+                ? SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: progress > 0 && progress < 1.0 ? progress : null,
+                          strokeWidth: 2.5,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                          backgroundColor: Colors.white24,
                         ),
-                    ],
+                        if (progress > 0 && progress < 1.0)
+                          Text(
+                            '${(progress * 100).toInt()}%',
+                            style: TextStyle(
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                              fontSize: 7,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                      ],
+                    ),
+                  )
+                : Icon(
+                    isDownloaded ? Icons.download_done : IconlyLight.download,
+                    size: 18,
+                    color: isDownloaded
+                        ? Colors.white
+                        : Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black54,
                   ),
-                )
-              : Icon(
-                  isDownloaded ? Icons.download_done : IconlyLight.download,
-                  size: 18,
-                  color: isDownloaded
-                      ? Colors.white
-                      : Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Colors.black54,
-                ),
-        ),
-      );
+          ),
+        );
+      } else {
+        // ── BOOK TAB ───────────────────────────────────────────────────────
+        final translate = controller.getCurrentTranslate();
+        final bookKey = translate?.bookKey;
+        final baseBookId = controller.bookDetail.value?.id.toString() ?? '0';
+        final bookId = translate != null ? '${baseBookId}_t${translate.id}' : baseBookId;
+
+        final isDownloaded = downloadController.downloadedBooks.any(
+          (b) => b.id == bookId && !b.isAudio,
+        );
+
+        return GestureDetector(
+          onTap: () async {
+            if (isLoading || isDownloaded) {
+              Get.to(() => const DownloadedListScreen());
+              return;
+            }
+
+            if (bookKey == null || bookKey.isEmpty) {
+              AppSnackbar.error('bookFileNotAvailable'.tr);
+              return;
+            }
+
+            final bookTitle = translate != null ? '${translate.name} (${translate.language})' : (translate?.name ?? 'unknown'.tr);
+            final imageUrl = controller.getBookCoverImage();
+            final book = controller.bookDetail.value;
+            final author = book?.authors.isNotEmpty == true ? book!.authors.first.name : 'unknown_author'.tr;
+
+            final confirmed = await _showDownloadConfirmationDialog(context, bookTitle, isAudio: false);
+            if (confirmed != true) return;
+
+            try {
+              _showLoadingDialog(context);
+              await downloadController.downloadAndEncryptBook(
+                bookId: bookId,
+                bookKey: bookKey,
+                bookTitle: bookTitle,
+                imageUrl: imageUrl,
+                author: author,
+              );
+              if (Get.isDialogOpen ?? false) Get.back();
+              _showSuccessDialog(context, bookTitle);
+            } catch (e) {
+              if (Get.isDialogOpen ?? false) Get.back();
+              AppSnackbar.error('failedToDownload'.trParams({'error': e.toString()}));
+            }
+          },
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: isDownloaded
+                  ? const Color(0xFF34C759)
+                  : Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[700]
+                      : Colors.grey[200],
+              shape: BoxShape.circle,
+            ),
+            child: isLoading
+                ? SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: progress > 0 && progress < 1.0 ? progress : null,
+                          strokeWidth: 2.5,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                          backgroundColor: Colors.white24,
+                        ),
+                        if (progress > 0 && progress < 1.0)
+                          Text(
+                            '${(progress * 100).toInt()}%',
+                            style: TextStyle(
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                              fontSize: 7,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                      ],
+                    ),
+                  )
+                : Icon(
+                    isDownloaded ? Icons.download_done : IconlyLight.download,
+                    size: 18,
+                    color: isDownloaded
+                        ? Colors.white
+                        : Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black54,
+                  ),
+          ),
+        );
+      }
     });
   }
 
   Future<bool?> _showDownloadConfirmationDialog(
     BuildContext context,
-    String bookTitle,
-  ) {
+    String bookTitle, {
+    bool isAudio = false,
+  }) {
     return Get.dialog<bool>(
       Dialog(
         backgroundColor: Colors.transparent,
@@ -290,7 +381,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'downloadBookTitle'.tr,
+                    isAudio ? 'downloadAudioTitle'.tr : 'downloadBookTitle'.tr,
                     style: TextStyle(
                       fontFamily: StringConstants.SFPro,
                       fontSize: 20,
@@ -300,7 +391,7 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'downloadBookContent'.trParams({'bookTitle': bookTitle}),
+                    isAudio ? 'downloadAudioContent'.trParams({'bookTitle': bookTitle}) : 'downloadBookContent'.trParams({'bookTitle': bookTitle}),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: StringConstants.SFPro,
@@ -547,6 +638,105 @@ class BookDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showCancelDownloadDialog(DownloadController downloadCtrl) {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.warning_rounded,
+                  color: Colors.orange.shade700,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'cancel_download'.tr,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'cancel_download_confirmation'.tr,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        'no'.tr,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        downloadCtrl.cancelDownload();
+                        Get.back();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'yes'.tr,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
     );
   }
 

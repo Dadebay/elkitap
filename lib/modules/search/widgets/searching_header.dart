@@ -29,13 +29,11 @@ class _SearchingHeaderState extends State<SearchingHeader> {
   }
 
   void _onSearchChanged(String value, SearchResultsController controller) {
-    // Cancel previous timer
     _debounceTimer?.cancel();
-
-    // Create new timer
+    print('⌨️ onChanged: "$value"');
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      // Only search if the value hasn't changed
       if (controller.searchController.text == value) {
+        print('⌨️ debounce fired: searchAuthors("$value")');
         controller.searchAuthors(value);
       }
     });
@@ -95,6 +93,15 @@ class _SearchingHeaderState extends State<SearchingHeader> {
                       },
                       onFieldSubmitted: (value) {
                         _debounceTimer?.cancel();
+                        final hasFilters = Get.isRegistered<FilterController>() && Get.find<FilterController>().hasActiveFilters;
+                        print('⌨️ onFieldSubmitted: "$value", hasFilters=$hasFilters, searchQuery="${controller.searchQuery.value}"');
+
+                        if (value.trim().isEmpty && hasFilters) {
+                          // Query empty but filters active — just close keyboard, keep results
+                          print('⌨️ OK pressed with empty query + active filters → keeping results, closing keyboard');
+                          FocusScope.of(context).unfocus();
+                          return;
+                        }
                         controller.searchAuthors(value);
                       },
                     ),

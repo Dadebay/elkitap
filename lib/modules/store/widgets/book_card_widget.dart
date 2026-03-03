@@ -182,7 +182,8 @@ class BookCardReOpen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Calculate dimensions based on withAudio property
     final cardWidth = width;
-    final cardHeight = book.withAudio ? width : height;
+    final bool hasRegularImage = book.image != null && book.image!.isNotEmpty;
+    final cardHeight = (!hasRegularImage && book.withAudio) ? width : height;
 
     return GestureDetector(
       onTap: onTap,
@@ -216,7 +217,7 @@ class BookCardReOpen extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(borderRadius),
                 child: CachedNetworkImage(
-                  imageUrl: '${ApiEndpoints.imageBaseUrl}${book.withAudio ? book.audioImage : book.image ?? ''}',
+                  imageUrl: '${ApiEndpoints.imageBaseUrl}${(book.image != null && book.image!.isNotEmpty) ? book.image! : book.withAudio ? (book.audioImage ?? '') : ''}',
                   fit: BoxFit.cover,
                   alignment: Alignment.bottomCenter,
                   placeholder: (context, url) => Container(

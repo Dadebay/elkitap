@@ -378,6 +378,8 @@ final Map<String, String> enUS = {
   'bookFileNotAvailable': 'Book file not available',
   'downloadBookTitle': 'Download Book',
   'downloadBookContent': 'Download "@bookTitle" for offline reading with encryption?',
+  'downloadAudioTitle': 'Download Audio',
+  'downloadAudioContent': 'Download audio for "@bookTitle" for offline listening with encryption?',
   'downloadingAndEncrypting': 'Downloading book...',
   'bookDownloadedSuccessfully': '"@bookTitle" has been downloaded and encrypted successfully!',
   'ok': 'OK',
