@@ -47,22 +47,16 @@ class _SettingsListState extends State<SettingsList> {
   late final TokenManager tokenManager;
 
   void _showUserAgreementBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const CustomBottomSheet(
+    Get.to(
+      () => const LegalDocumentPage(
         documentType: LegalDocumentType.userAgreement,
       ),
     );
   }
 
   void _showPrivacyPolicyBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const CustomBottomSheet(
+    Get.to(
+      () => const LegalDocumentPage(
         documentType: LegalDocumentType.privacyPolicy,
       ),
     );

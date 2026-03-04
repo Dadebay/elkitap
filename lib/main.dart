@@ -47,8 +47,9 @@ void main() async {
       androidNotificationChannelId: 'com.elkitap.app.audio',
       androidNotificationChannelName: 'Elkitap Audiobook',
       androidNotificationOngoing: true,
-      // androidStopForegroundOnPause must be true when androidNotificationOngoing is true
       androidStopForegroundOnPause: true,
+      androidNotificationIcon: 'drawable/ic_notification',
+      notificationColor: Color(0xFF1A6B3C),
     ),
   );
 

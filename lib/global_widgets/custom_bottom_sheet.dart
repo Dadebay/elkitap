@@ -10,10 +10,10 @@ enum LegalDocumentType {
   userAgreement,
 }
 
-class CustomBottomSheet extends GetView<ContactsController> {
+class LegalDocumentPage extends GetView<ContactsController> {
   final LegalDocumentType documentType;
 
-  const CustomBottomSheet({
+  const LegalDocumentPage({
     super.key,
     required this.documentType,
   });
@@ -38,117 +38,66 @@ class CustomBottomSheet extends GetView<ContactsController> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.9,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        leading: GestureDetector(
+          onTap: () => Get.back(),
+          child: Icon(
+            Icons.arrow_back_ios,
+            color: Theme.of(context).iconTheme.color,
+            size: 20,
           ),
-          child: Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+        ),
+        title: Text(
+          _title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).textTheme.bodyLarge!.color,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1),
+        ),
+      ),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return LoadingWidget(removeBackWhite: true);
+        }
+
+        if (_url.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text(
+                'link_not_available'.tr,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: StringConstants.SFPro,
+                  color: Theme.of(context).textTheme.bodyMedium!.color,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
-                      child: Icon(
-                        Icons.arrow_back_ios,
-                        color: Theme.of(context).iconTheme.color,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'profile'.tr,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: StringConstants.SFPro,
-                        color: Theme.of(context).textTheme.bodyLarge!.color,
-                      ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          _title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: StringConstants.SFPro,
-                            color: Theme.of(context).textTheme.bodyLarge!.color,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 60),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: Obx(() {
-                  if (controller.isLoading.value) {
-                    return LoadingWidget(removeBackWhite: true);
-                  }
+            ),
+          );
+        }
 
-                  if (_url.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Text(
-                          'link_not_available'.tr,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontFamily: StringConstants.SFPro,
-                            color: Theme.of(context).textTheme.bodyMedium!.color,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                    child: InAppWebView(
-                      initialUrlRequest: URLRequest(url: WebUri(_url)),
-                      initialSettings: InAppWebViewSettings(
-                        javaScriptEnabled: true,
-                        useWideViewPort: false,
-                        loadWithOverviewMode: false,
-                        builtInZoomControls: false,
-                        displayZoomControls: false,
-                        supportZoom: true,
-                        transparentBackground: true,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ],
+        return InAppWebView(
+          initialUrlRequest: URLRequest(url: WebUri(_url)),
+          initialSettings: InAppWebViewSettings(
+            javaScriptEnabled: true,
+            useWideViewPort: false,
+            loadWithOverviewMode: false,
+            builtInZoomControls: false,
+            displayZoomControls: false,
+            supportZoom: true,
+            transparentBackground: true,
           ),
         );
-      },
+      }),
     );
   }
 }

@@ -43,7 +43,6 @@ class AudioTopBar extends StatelessWidget {
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () {
               Get.back();
-              controller.isPlaying.value ? globalMiniCtrl.show() : null;
             },
           ),
         ),

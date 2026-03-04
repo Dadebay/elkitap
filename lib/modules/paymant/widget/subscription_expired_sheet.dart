@@ -2,6 +2,7 @@ import 'package:elkitap/core/constants/string_constants.dart';
 import 'package:elkitap/core/theme/app_colors.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 import 'package:elkitap/modules/auth/controllers/auth_controller.dart';
+import 'package:elkitap/modules/paymant/controller/payment_controller.dart';
 import 'package:elkitap/modules/paymant/view/promocode_sheet.dart';
 import 'package:elkitap/modules/paymant/view/subscription_plans_sheet.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,11 @@ class SubscriptionExpiredSheet extends StatelessWidget {
     if (result != null && result != false && context.mounted) {
       final authController = Get.find<AuthController>();
       await authController.getMe();
+
+      // Refresh subscription status so UI updates without manual refresh
+      if (Get.isRegistered<PaymentController>()) {
+        await Get.find<PaymentController>().getPaymentStatus();
+      }
 
       // Extract tariff/subscription info to show days added
       int addedDays = 0;
@@ -66,6 +72,11 @@ class SubscriptionExpiredSheet extends StatelessWidget {
     if (result != null) {
       final authController = Get.find<AuthController>();
       await authController.getMe();
+
+      // Refresh subscription status so UI updates without manual refresh
+      if (Get.isRegistered<PaymentController>()) {
+        await Get.find<PaymentController>().getPaymentStatus();
+      }
 
       int addedDays = 0;
       if (result is Map<String, dynamic>) {

@@ -17,6 +17,7 @@ import 'package:elkitap/modules/library/controllers/downloaded_controller.dart';
 import 'package:elkitap/core/config/secure_file_storage_service.dart';
 import 'package:elkitap/utils/local_hls_server.dart';
 import 'package:elkitap/main.dart' show audioHandler;
+import 'package:permission_handler/permission_handler.dart';
 
 class AudioPlayerController extends GetxController {
   // Use the global audioHandler that is registered with iOS Now Playing
@@ -65,7 +66,17 @@ class AudioPlayerController extends GetxController {
     if (Get.isRegistered<NetworkManager>()) {
       _networkManager = Get.find<NetworkManager>();
     }
+    _requestNotificationPermission();
     _setupListeners();
+  }
+
+  /// Request POST_NOTIFICATIONS permission on Android 13+ (API 33+)
+  Future<void> _requestNotificationPermission() async {
+    if (!Platform.isAndroid) return;
+    final status = await Permission.notification.status;
+    if (status.isDenied) {
+      await Permission.notification.request();
+    }
   }
 
   void _setupListeners() {
@@ -112,7 +123,7 @@ class AudioPlayerController extends GetxController {
       audioSource.value = source;
       isAssetAudio.value = isAsset;
 
-      print('📱 Audio loaded with iOS Now Playing metadata:');
+      print('📱 Audio loaded with system media player metadata (iOS + Android):');
       print('   Title: $title');
       print('   Artist: $artist');
       print('   Art: $artUri');

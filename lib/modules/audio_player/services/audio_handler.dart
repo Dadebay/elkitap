@@ -3,9 +3,9 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 
-/// AudioHandler - connects just_audio to iOS Now Playing system
-/// This registers our audiobook player with iOS Control Center,
-/// Lock Screen, and all system media controls.
+/// AudioHandler - connects just_audio to system media controls
+/// iOS: Now Playing, Control Center, Lock Screen
+/// Android: Media notification, lock screen player, headphone buttons
 class ElkitapAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
 

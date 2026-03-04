@@ -3,6 +3,7 @@ import 'package:elkitap/core/theme/app_colors.dart';
 import 'package:elkitap/core/widgets/common/app_snackbar.dart';
 
 import 'package:elkitap/modules/auth/controllers/auth_controller.dart';
+import 'package:elkitap/modules/paymant/controller/payment_controller.dart';
 import 'package:elkitap/modules/paymant/view/promocode_sheet.dart';
 import 'package:elkitap/modules/paymant/widget/subscription_expired_sheet.dart';
 import 'package:flutter/material.dart';
@@ -21,13 +22,20 @@ class SubscribedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     void _showSubscriptionExpiredSheet(BuildContext context) {
+      final authController = Get.find<AuthController>();
       showModalBottomSheet(
         context: context,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         builder: (context) => const SubscriptionExpiredSheet(),
-      );
+      ).then((_) async {
+        // Sheet kapandıktan sonra kullanıcı verilerini güncelle
+        await authController.getMe();
+        if (Get.isRegistered<PaymentController>()) {
+          await Get.find<PaymentController>().getPaymentStatus();
+        }
+      });
     }
 
     void _showPromocodeSheet(BuildContext context) {

@@ -505,8 +505,8 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = V793RH49BX;
 				ENABLE_BITCODE = NO;
-				FLUTTER_BUILD_NAME = 2.0.5;
-				FLUTTER_BUILD_NUMBER = 25;
+				FLUTTER_BUILD_NAME = 2.0.7;
+				FLUTTER_BUILD_NUMBER = 27;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Elkitap;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
@@ -515,7 +515,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.5;
+				MARKETING_VERSION = 2.0.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.elkitap.elkitap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -700,8 +700,8 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = V793RH49BX;
 				ENABLE_BITCODE = NO;
-				FLUTTER_BUILD_NAME = 2.0.5;
-				FLUTTER_BUILD_NUMBER = 25;
+				FLUTTER_BUILD_NAME = 2.0.7;
+				FLUTTER_BUILD_NUMBER = 27;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Elkitap;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
@@ -710,7 +710,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.5;
+				MARKETING_VERSION = 2.0.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.elkitap.elkitap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -735,8 +735,8 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = V793RH49BX;
 				ENABLE_BITCODE = NO;
-				FLUTTER_BUILD_NAME = 2.0.5;
-				FLUTTER_BUILD_NUMBER = 25;
+				FLUTTER_BUILD_NAME = 2.0.7;
+				FLUTTER_BUILD_NUMBER = 27;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Elkitap;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
@@ -745,7 +745,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.5;
+				MARKETING_VERSION = 2.0.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.elkitap.elkitap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

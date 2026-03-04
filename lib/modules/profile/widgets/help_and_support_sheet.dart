@@ -99,11 +99,10 @@ class HelpAndSupportBottomSheet extends GetView<ContactsController> {
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: 10),
                 Text(
                   'profile'.tr,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 15,
                     fontFamily: StringConstants.SFPro,
                     color: Theme.of(context).textTheme.bodyLarge!.color, // Theme-adaptive text color
                     fontWeight: FontWeight.w400,
@@ -115,7 +114,6 @@ class HelpAndSupportBottomSheet extends GetView<ContactsController> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 18,
-                      fontFamily: StringConstants.SFPro,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).textTheme.bodyLarge!.color,
                     ),

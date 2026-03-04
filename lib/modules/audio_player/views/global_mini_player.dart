@@ -181,7 +181,8 @@ class _GlobalMiniPlayerState extends State<GlobalMiniPlayer> {
                       Obx(() => DefaultTextStyle(
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Gilroy',
                               color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
                             ),
                             child: Text(
@@ -195,6 +196,7 @@ class _GlobalMiniPlayerState extends State<GlobalMiniPlayer> {
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 12,
+                              fontFamily: 'Gilroy',
                             ),
                             child: Text(
                               '${controller.formatDuration(controller.position.value)}',

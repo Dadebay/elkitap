@@ -14,7 +14,7 @@ import 'package:elkitap/modules/audio_player/controllers/audio_player_controller
 import 'package:elkitap/modules/audio_player/views/driver_mode_screen.dart';
 import 'package:elkitap/modules/store/controllers/book_detail_controller.dart';
 
-class AudiobookPlayerScreen extends StatelessWidget {
+class AudiobookPlayerScreen extends StatefulWidget {
   final String? bookTitle;
   final String? bookAuthor;
   final String? bookCover;
@@ -37,90 +37,111 @@ class AudiobookPlayerScreen extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final controller = Get.put(AudioPlayerController());
-    final globalMiniCtrl = Get.find<GlobalMiniPlayerController>();
-    BooksDetailController? bookDetailController;
+  State<AudiobookPlayerScreen> createState() => _AudiobookPlayerScreenState();
+}
 
-    if (bookId != null) {
-      final controllerTag = bookId.toString();
+class _AudiobookPlayerScreenState extends State<AudiobookPlayerScreen> {
+  late AudioPlayerController _controller;
+  late GlobalMiniPlayerController _globalMiniCtrl;
+  BooksDetailController? _bookDetailController;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = Get.put(AudioPlayerController());
+    _globalMiniCtrl = Get.find<GlobalMiniPlayerController>();
+
+    if (widget.bookId != null) {
+      final controllerTag = widget.bookId.toString();
       if (Get.isRegistered<BooksDetailController>(tag: controllerTag)) {
-        bookDetailController = Get.find<BooksDetailController>(tag: controllerTag);
+        _bookDetailController = Get.find<BooksDetailController>(tag: controllerTag);
       } else {
-        bookDetailController = Get.put(
+        _bookDetailController = Get.put(
           BooksDetailController(),
           tag: controllerTag,
         );
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        bookDetailController!.fetchBookDetail(bookId!);
-        bookDetailController.isAudio.value = true;
-        if (hlsUrl != null) {
-          bookDetailController.audioHlsUrl.value = hlsUrl!;
+        _bookDetailController!.fetchBookDetail(widget.bookId!);
+        _bookDetailController!.isAudio.value = true;
+        if (widget.hlsUrl != null) {
+          _bookDetailController!.audioHlsUrl.value = widget.hlsUrl!;
         }
       });
     }
 
-    if (hlsUrl != null && hlsUrl!.isNotEmpty) {
+    if (widget.hlsUrl != null && widget.hlsUrl!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.loadBookAudio(
-          hlsUrl: hlsUrl!,
-          bookTitle: bookTitle ?? 'unknown_title'.tr,
-          bookAuthor: bookAuthor ?? 'unknown_author'.tr,
-          bookCover: bookCover ?? '',
-          bookId: bookId ?? 0,
-          initialProgress: initialProgress,
-          forceOffline: forceOffline,
+        _controller.loadBookAudio(
+          hlsUrl: widget.hlsUrl!,
+          bookTitle: widget.bookTitle ?? 'unknown_title'.tr,
+          bookAuthor: widget.bookAuthor ?? 'unknown_author'.tr,
+          bookCover: widget.bookCover ?? '',
+          bookId: widget.bookId ?? 0,
+          initialProgress: widget.initialProgress,
+          forceOffline: widget.forceOffline,
         );
       });
     }
+  }
 
-    Future<bool> _onWillPop() async {
-      controller.isPlaying.value ? globalMiniCtrl.show() : null;
-      return true;
-    }
+  @override
+  void dispose() {
+    // Route transition animasyonu bitmeden show() çağrılırsa
+    // _shouldShowPlayer() hâlâ AudiobookPlayerScreen route'unu görür ve gizler.
+    // Kısa bir gecikme ile navigasyon tamamlandıktan sonra gösteriyoruz.
+    try {
+      if (_controller.isPlaying.value) {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          try {
+            _globalMiniCtrl.show();
+          } catch (_) {}
+        });
+      }
+    } catch (_) {}
+    super.dispose();
+  }
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        body: Stack(
-          children: [
-            AudioBackground(),
-            SafeArea(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    children: [
-                      AudioTopBar(
-                        bookId: bookId,
-                        hlsUrl: hlsUrl,
-                        bookTitle: bookTitle,
-                        bookCover: bookCover,
-                        bookAuthor: bookAuthor,
-                        bookDetailController: bookDetailController,
-                        globalMiniCtrl: globalMiniCtrl,
-                      ),
-                      AudioBookCover(),
-                      AudioBookInfo(),
-                      AudioProgressBar(),
-                      AudioPlaybackControls(),
-                      AudioBottomControls(
-                        onSpeedTap: () => SpeedPopup.show(context, controller),
-                        onSleepTimerTap: () => SleepTimerPopup.show(context, controller),
-                        onBluetoothTap: () => BluetoothPopup.show(context),
-                        onDriverModeTap: () {
-                          controller.enableDriverMode();
-                          Get.to(() => const DriverModeScreen());
-                        },
-                      ),
-                    ],
-                  ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          AudioBackground(),
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    AudioTopBar(
+                      bookId: widget.bookId,
+                      hlsUrl: widget.hlsUrl,
+                      bookTitle: widget.bookTitle,
+                      bookCover: widget.bookCover,
+                      bookAuthor: widget.bookAuthor,
+                      bookDetailController: _bookDetailController,
+                      globalMiniCtrl: _globalMiniCtrl,
+                    ),
+                    AudioBookCover(),
+                    AudioBookInfo(),
+                    AudioProgressBar(),
+                    AudioPlaybackControls(),
+                    AudioBottomControls(
+                      onSpeedTap: () => SpeedPopup.show(context, _controller),
+                      onSleepTimerTap: () => SleepTimerPopup.show(context, _controller),
+                      onBluetoothTap: () => BluetoothPopup.show(context),
+                      onDriverModeTap: () {
+                        _controller.enableDriverMode();
+                        Get.to(() => const DriverModeScreen());
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
